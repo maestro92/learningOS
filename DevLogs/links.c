@@ -1,6 +1,9 @@
 
 
 
+MikeOS
+http://mikeos.sourceforge.net/
+
 
 OSDev forums
 https://forum.osdev.org/
@@ -29,3 +32,10 @@ The MagPi
 the Raspberrypi magazine 
 https://magpi.raspberrypi.org/
 
+
+Bran_s tutorials
+http://www.osdever.net/bkerndev/Docs/intro.htm
+
+
+JamesM_s tutorials 
+http://www.jamesmolloy.co.uk/tutorial_html/index.html

@@ -25,6 +25,45 @@ linker.ld - for linking the above files
 ################################## bootloader and boot.s #################################
 ##########################################################################################
 
+a bit of background of how a bootloader works.
+
+so imagine your mother board looks like this:
+
+and on this motherboard, there is a chip that contains a bit of code. That piece of code is called BIOS.
+which is Basic Input Output System.
+         ___________________________
+        |      motherboard          |
+        |                           |
+        |     _______               |
+        |    |       |              |
+        |    | BIOS  |              |
+        |    |_______|              |
+        |                           |
+        |                           |
+        |                           |
+        |                           |
+        |                           |
+        |                           |
+        |___________________________|
+
+when you start your computer. BIOS is the first software that runs. It identifies your computer_s hardware, 
+configures it, test it, and connects it to your operating system for further instructions. This is called the bootprocess.
+
+THe BIOS finds the configured primary bootable device (usually the computer_s hard disk); and loads and executes the initial bootstrap
+program from the master boot record. 
+
+The boot loader takes over from BIOS at boot time, load itself, load the Linux kernel into memory, 
+and then turn over execution to the kernel. Once the kernel takes over, GRUB has done its job and it is no longer needed. So in a way 
+the main point of a bootloader is to load an OS kernel and to transfer control to it. 
+
+
+
+
+
+so there is this Multiboot specification, which is a specification of how to .....
+
+
+
         "Bootloader is a piece of code/program that runs before an operating system starts to run. 
         It loads an operating system when a computer is turned on. It tells the hardware where to look and how to get running when you start things up.
 
@@ -40,9 +79,26 @@ That boot.s is gonna tell the GRUB, the bootloader how to load and start our ker
 
 Luckily there is the Multiboot standard, "which describes an easy interface between the bootloader and the operating system kernel"
 
+
+
+links:
+https://en.wikipedia.org/wiki/GNU_GRUB
+https://www.youtube.com/watch?v=ncUmWthHrU0
+https://www.youtube.com/watch?v=Jcan8YfLfLs
+https://www.reddit.com/r/linux/comments/b4zig/asklinux_how_does_grub_work/
+https://0xax.github.io/grub/
+
+
+
+
 -   multi-booting 
 
+Multiboot is about loading various kernels using a single boot loader.
 installing multiple OS on a computer, and being able to choose which one to boot. 
+
+
+https://stackoverflow.com/questions/17698121/what-is-meant-by-multiboot-header
+
 
 
 -   multiboot standard
@@ -52,6 +108,36 @@ way to be booted by Multiboot-compliant bootloaders.
 
 The Multiboot specification is an open standard describing how a boot loader can load an x86 operating system kernel.
 The specification allows any compliant boot-loader implementation to boot any compliant operating-system kernel. 
+
+
+
+
+
+
+https://stackoverflow.com/questions/23854755/who-defines-the-bootloader-specification
+
+
+
+
+##########################################################################################
+########################################### actual code ##################################
+##########################################################################################
+
+
+so the first thing is that in our bootloader, we will have a multiboot header. 
+
+Multiboot is about loading various kernels using a single boot loader. 
+The Multiboot Header is a data structure in the kernel image that provides 
+information to a Multiboot-compliant boot loader (GRUB for instance) about how and where to load the image, and which Multiboot features the image expects.
+
+The multiboot header exists to allow a bootloader (for example, GRUB); to load the kernel to whom the header belongs in a way that that kernel expects.
+
+For example, GRUB can provide the kernel with a memory map when it starts, but it would be a waste of time for GRUB to do that if the kernel it is loading wont use it. 
+The flags field in the multiboot header is used to specify whether or not the kernel being loaded expects a map.
+The multiboot header also includes the Multiboot magic number (which allows GRUB to find the location of the multiboot header).
+In short, information in the header will either change how the kernel will be loaded into memory or request that the kernel would like some extra information.
+
+
 
 
 
@@ -201,88 +287,96 @@ The Executable and Linkable Format (ELF) is part of the System V ABI.
 
 
 
+4.      lets look at the next section 
 
 
+                .section .text
+                .global _start
+                .type _start, @function
 
 
 
+so here we see two new directives: 
 
+        .global symbol, .globl symbol
+        .global makes the symbol visible to ld. If you define symbol in your partial program, 
+        its value is made available to other partial programs that are linked with it. 
+        Otherwise, symbol takes its attributes from a symbol of the same name from another file linked into the same program.
 
+        Both spellings (`.globl' and `.global') are accepted, for compatibility with other assemblers.
 
+        On the HPPA, .global is not always enough to make it accessible to other partial programs. 
+        You may need the HPPA-only .EXPORT directive as well. See section HPPA Assembler Directives.
 
+ld, as mentioned is the GNU linker
 
 
+we also have 
 
+        .type int
+        This directive, permitted only within .def/.endef pairs, records the integer int as the type attribute of a symbol table entry.
 
+        '.type' is associated only with COFF format output; when as is configured for b.out output, it accepts this directive but ignores it.
 
 
 
+the comments says 
+        /*
+        The linker script specifies _start as the entry point to the kernel and the
+        bootloader will jump to this position once the kernel has been loaded. It
+        doesn't make sense to return from this function as the bootloader is gone.
+        */
 
+so i guess, .global _start is making the "_start" symbol visible to the GNU linker. 
 
 
 
 
+5.  now we go into the _start: section 
+the things we are doing here is: 
 
+-   so what we are doing here is that we set the esp register to point to the top of the stack. 
 
+-   disable interrupts with cli (clear interrupt enable in eflags);
 
 
 
-so following this link:
+                _start: 
+                    mov $stack_top, %esp
+                    call kernel_main
+                    cli
+                1:  hlt
+                    jmp 1b
 
-https://wiki.osdev.org/Raspberry_Pi_Bare_Bones
 
 
-                "The first thing you should do is set up a GCC Cross-Compiler for arm-none-eabi."
 
 
+6.  
+                .size _start, . - _start
 
-##########################################################################
-############################ arm-none-eabi ###############################
-##########################################################################
 
-so what is arm-none-eabi
-https://web.eecs.umich.edu/~prabal/teaching/resources/eecs373/toolchain-notes.pdf
 
-GCC is a popular, open source toolchain that can generate code for a wide range of architectures including Intel’s x86, 
-ARM v4/5/6/7, TI’s MSP, Atmel’s AVR, and many others
 
 
- If you search for an ARM compiler, you
-might stumble across the following toolchains: arm-none-linux-gnueabi, arm-none-eabi, arm-eabi, and
-arm-softfloat-linux-gnu, among others. This might leave you wondering about the method to the naming
-madness. Unix cross compilers are loosely named using a convention of the form arch[-vendor][-os]-abi.
-The arch refers to the target architecture, which in our case is ARM. The vendor nominally refers to the
-toolchain supplier. The os refers to the target operating system, if any, and is used to decide which libraries
-(e.g. newlib, glibc, crt0, etc.)
 
 
 
 
-• arm-none-eabi is the toolchain we use in this class. This toolchain targets the ARM architecture,
-has no vendor, does not target an operating system (i.e. targets a “bare metal” system), and complies
-with the ARM EABI.
 
 
 
-ARM EABI
 
-EABI is the new "Embedded" ABI by ARM ltd. EABI is actually a family of EBAIs and one of the "sbuABIs" is GNU EABI, for Linux. 
 
-https://wiki.debian.org/ArmEabiPort
 
 
 
 
 
 
--   ABI 
-https://en.wikipedia.org/wiki/Application_binary_interface
 
-an ABI defines how data structures or computational routines are accessed in machine code, 
 
 
-System V ABI is the standard ABI used by the major Unix Operating system such as Linux, the BSD systems, and many others. 
-The Executable and Linkable Format (ELF) is part of the System V ABI. 
 
 
 
@@ -293,156 +387,45 @@ The Executable and Linkable Format (ELF) is part of the System V ABI.
 
 
 
+A hard disk is essentially an array of blocks, each 512B in size. Could be over a billion of them. Numbered from 0 on up. 
+Thats it. The partitioning schema runs over this, and filesystems are stored in those containers, and files are stored in there. Your BIOS is very dumb, 
+it cant understand partitions, filesystems, files, and it especially cannot load an operating system. 
+Remember that a program can only run in memory, and your OS is on a disk. So BIOS loads and runs the first block of the device you tell it to. 
+Thats just 512B. Of that, the DOS partition table takes up like 90B, so you have 400B or so worth to put the start of your boot code. 
+Thats not a lot of space. Fortunately, your first partition usually starts on the 64th block (which is sector #63). 
+Thats because the traditional set up had 63 sectors per cylinder, leaving the entire first cylinder empty. So traditional grub would have stage 1 in sector 0, 
+and stage "1.5" in the rest of that first cylinder. Those extra 61 sectors is around 30kB, enough room to cleverly store how to read from ext2 and ext3 partitions, 
+which is where you have unlimited room for the meat of grub. Grub reads the /boot partition that you had configured it to use, 
+and can get to actual files on a filesystem, and can learn how to use xfs, reiser, whatnot. 
+Im pretty sure this is stage 2? But now grub is smart enough to read its configuration file, 
+and load your linux kernel from your boot partition. Loading an OS is not trivial, it has to be placed into memory, 
+and then you have to load parameters to the OS into certain regions of memory, and then tell the kernel information 
+about where you loaded it, and then tell the CPU to jump to it, but you cant jump into it anywhere. You have to point into the correct entry point.
+
+The difficult thing is that your cpu starts in real mode, which allows for unfettered handing off of control, 
+but your cpu needs to be in protected mode in order to access the entirety of ram. So it toggles back and forth 
+between these modes in order to load the kernel into ram properly. Ive heard this referred to as "unreal mode". 
+Every OS used to have its own method for being loaded, so every OS used to have its own bootloader. 
+The idea behind GRUB, or the grand unified boot loader, would be to be able to boot everything. They publish the multiboot specification, which many free OS follow. 
+Its also smart enough to know how to load or chainload other operating systems. It cant load windows, but it can point to the microsoft bootloader that can.
+
+This complexity is not just left to Linux. Traditionally, the DOS boot sector would look at the partition table, 
+see which partition is flagged as bootable, and load that one. The start of those partitions would have a VBR, 
+a volume boot record. That gives it 512B, and Im pretty sure they could then use additional sectors if they needed. 
+This bootloader would then know how to load your OS, be it command.com or ntldr. 
+ntldr is the real microsoft bootloader that knows how to genuinely get your windows kernel going.
+
+So it really is a big complex chain of command.
+
+Going forward though, this could all change. The planned replacement to BIOS, EFI, 
+comes with its own replacement to the traditional MBR/DOS partitioning system. There arent only multiple filesystems in the world, 
+there are multiple partition schemes. I think traditional macs and solaris did things their own way there. 
+EFI_s partitioning is called GPT. EFI puts a smarter bootloader into the motherboard, so you can technically go without a bootloader in the MBR. 
+EFI would let you select your partition and boot that. You dont need EFI to use GPT either, you can use it with BIOS and Grub2, right now.
+
+One of the reasons that the largest HD_s we_ve seen has kind of stayed at 2TB for longer than usual is that it_s the largest that MBR partitioning can address. 
+MBR partitions start and end numbers are fixed at 32bit, which means you can_t have any partition extending past the first 2TB of a drive.
+
+GPT leaves the first sector blank, for backwards compatibility and for safety. Then it uses the next 62 sectors to store the partition table. This is a lot larger than the old 90B partitioning table you used to have. It is 64 bit, and allows for 128 raw partitions,
+ instead of just 4. It does away with MBR_s "extended" partitioning which used a complex linked list of EBRs. If you want to use GPT but have BIOS instead of EFI, you can. Grub2 can install to the first sector (conveniently left blank), and you make one of your 128 partitions a tiny 31kB partition just for GRUB, using FAT. Your BIOS will boot grub2, grub2 will load more information from the grub_boot partition, and then it can find the /boot where it finds its config and presents a menu, and it can then chainload or load a kernel or boot usb or whatever you need.
 
--   Linux 
-Linux is perfect in this regard because nowadays everything from small IoT devices to large servers tend to run Linux.
-
-https://github.com/s-matyukevich/raspberry-pi-os/blob/master/docs/Introduction.md
-
-
-Each OS has 2 fundamental goals 
-1.  Run user process in isolation
-2.  Provide ach user process with a unified view of the machine hardware.
-
-
-
-
-from this link 
-https://hackaday.com/2018/01/19/roll-your-own-raspberry-pi-os/
-                
-
-
-                Writing an operating system is no small task, but like everything else it is easier than it used to be. 
-                [JSandler] has a tutorial on how to create a simple operating system for the Raspberry Pi. 
-                One thing that makes it easier is the development environment used. 
-                QEMU emulates a Raspberry Pi so you can do the development on a desktop PC 
-                and test in the virtual environment. When you are ready, you can set up a bootable SD card and try your work on a real device.
-
-
-so lets download QEMU.
-
-
-
-
-http://wiki.laptop.org/go/Using_QEMU_on_Windows
-
-
-                The accelerator for QEMU named KQEMU, while not required, is highly recommended as a performance booster.
-
-
-so lets also download KQEMU
-
-
-
-
-
-
-
-
-
-
-
-#####################################################################################
-####################################### QEMU ########################################
-#####################################################################################
-
-according to wikipedia 
-
-                QEMU is Quick EMUlator is a free and open-source emulator that performs hardware virtualization. 
-
-
-                QEMU is a hosted virtual machine monitor: it emulates the machines processor through dynamic binary translation 
-                and provides a set of different hardware and device models for the machine, enabling it to run a variety of guest operating systems. 
-                It also can be used with KVM to run virtual machines at near-native speed (by taking advantage of hardware extensions such as Intel VT-x). 
-                QEMU can also do emulation for user-level processes, allowing applications compiled for one architecture to run on another.
-
-
-
-
-
-
-#################################################################################
-###################### Raspberry pi zero Specs ##################################
-#################################################################################
-
-
-Raspberry pi model comparisons
-
-so the raspberrypi pi zero is in this link
-https://socialcompare.com/en/comparison/raspberry-pi-alternatives
-
-the raspberrypi zero w is in this link
-http://socialcompare.com/en/comparison/raspberrypi-models-comparison
-
-
-from looking at the model, two looks very similar to the one I have:
-
-but it seems like I have the raspberry pi zero w becuz its got the camera connector on the right side.
-
-'w' stands for wireless.
-
-
-https://www.youtube.com/watch?v=TUz2mVtJVsM
-
-
-
-
-
-
-
-
-The specs of it is here:
-http://socialcompare.com/en/review/raspberry-pi-zero-wireless
-
-        802.11 b/g/n wireless LAN
-        Bluetooth(R) 4.1
-        Bluetooth Low Energy (BLE)
-        1GHz, single-core CPU
-        512MB RAM
-        Mini HDMI and USB On-The-Go ports
-        Micro USB power
-        HAT-compatible 40-pin header pins
-        Composite video and reset headers
-        CSI camera connector
-
-
-
-if you want to use the Mini HDMI, usually you would get a HDMI to mini HDMI adapter.
-
-
-so you need a micro SD card
-
-
-
-
-Getting Started with the Raspberry Pi Zero Wireless
-https://learn.sparkfun.com/tutorials/getting-started-with-the-raspberry-pi-zero-wireless/all
-https://media.digikey.com/pdf/Data%20Sheets/Sparkfun%20PDFs/Getting_Started_with_RaspberryPiZeroWireless_Web.pdf
-
-
-
-
-
-
-
-The Raspberry Pi Zero has a 32-bit ARMv6Z architecture with the Broadcom BCM2835 SoC found in the Model A and Model B+ Pis. Similarly, the CPU is a 1GHz single-core ARM1176JZF-S, similar to that found on the original Pis (but bumped up from 700MHz). It has 512MB shared RAM, and the 1.3 revision boards (those released since May 2016) also have the MIPI camera interface.
-
-Equipped with a micro USB for power, and another for data only, the Pi Zero has mini HDMI-out and a microSD slot as expected. Stereo audio can be output via the GPIO. Although the GPIO pins are removed, the array — along with the Run and TV I/O — remain. This means that they can still be used, either by soldering, or manually adding GPIO pins (kits are available).
-
-https://www.makeuseof.com/tag/raspberry-pi-board-guide/
-
-
-
-so some of the videos I watched to better understand how the raspberry Pi work:
-
-Raspberry Pi 4 Getting Started
-https://www.youtube.com/watch?v=BpJCAafw2qE
-
-
-so you need micro SD card
-
-
-
-
-
--       Raspberry Pi Zero Specs
