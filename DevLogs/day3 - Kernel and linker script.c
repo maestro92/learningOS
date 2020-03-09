@@ -158,5 +158,123 @@ as we writing each character into our terminal_buffer, we update our write curso
 
 
 ####################################################################################################
-########################################## Linker Script  ##########################################
+########################################## Linker Script ###########################################
 ####################################################################################################
+
+in normal circumstances, if you dont use a linker script, the linker will use a default linker script that is compiled 
+into the linker executable. However in kernel development, you will have to provde  your own customized linker script. 
+
+the link below talks a lot about linker commands 
+http://www.scoberlin.de/content/media/http/informatik/gcc_docs/ld_3.html
+
+lets look at the linker script 
+
+
+                /* The bootloader will look at this image and start execution at the symbol
+                   designated as the entry point. */
+                ENTRY(_start)
+                 
+                /* Tell where the various sections of the object files will be put in the final
+                   kernel image. */
+                SECTIONS
+                {
+                    /* Begin putting sections at 1 MiB, a conventional place for kernels to be
+                       loaded at by the bootloader. */
+                    . = 1M;
+                 
+                    /* First put the multiboot header, as it is required to be put very early
+                       early in the image or the bootloader won't recognize the file format.
+                       Next we'll put the .text section. */
+                    .text BLOCK(4K) : ALIGN(4K)
+                    {
+                        *(.multiboot)
+                        *(.text)
+                    }
+                 
+                    /* Read-only data. */
+                    .rodata BLOCK(4K) : ALIGN(4K)
+                    {
+                        *(.rodata)
+                    }
+                 
+                    /* Read-write data (initialized) */
+                    .data BLOCK(4K) : ALIGN(4K)
+                    {
+                        *(.data)
+                    }
+                 
+                    /* Read-write data (uninitialized) and stack */
+                    .bss BLOCK(4K) : ALIGN(4K)
+                    {
+                        *(COMMON)
+                        *(.bss)
+                    }
+                 
+                    /* The compiler may produce other sections, by default it will put them in
+                       a segment with the same name. Simply add stuff here as needed. */
+                }
+
+
+-   ENTRY command
+so the first think is the Entry point. The first instruction to execute in a program is the called the entry point. 
+You use the ENTRY linker script command to set the entry point. The argument is a symbol name. 
+
+                ENTRY(symbol)
+
+The linker will set the entry point by tring each of the following methods in order, and stopping when one of them succeeds
+
+                -   the '-e' entry command-line option;
+                -   the ENTRY(symbol) command in a linker script;
+                -   the value of the symbol start, if defined;
+                -   the address of the first byte of the '.text' section, if present;
+                -   The address 0.
+
+so in our case, ENTRY(_start), we are setting _start as our entry point. Recall that _start is defined in our bootloader.c function;
+
+
+-   SECTIONS command 
+the SECTIONS command tells the linker how to map input sections into output sections, and how to place the output secions in memory. 
+
+Each sections-command may of be one of the following:
+
+                -   an ENTRY command (see section Setting the entry point)
+                -   a symbol assignment (see section Assigning Values to Symbols)
+                -   an output section description
+                -   an overlay description
+
+so we can only define output section that is supported by the format. For example a.out supports .text, .data and .bss.
+
+
+###################################################################################
+######################### Testing On QEMU #########################################
+###################################################################################
+
+So we will be using QEMU to test our Operating System 
+according to wikipedia 
+
+                QEMU is Quick EMUlator is a free and open-source emulator that performs hardware virtualization. 
+
+
+                QEMU is a hosted virtual machine monitor: it emulates the machines processor through dynamic binary translation 
+                and provides a set of different hardware and device models for the machine, enabling it to run a variety of guest operating systems. 
+                It also can be used with KVM to run virtual machines at near-native speed (by taking advantage of hardware extensions such as Intel VT-x). 
+                QEMU can also do emulation for user-level processes, allowing applications compiled for one architecture to run on another.
+
+
+to install QEMU, i just followed this video.
+https://www.youtube.com/watch?v=al1cnTjeayk
+
+besure to add the executable to your windows Enviornment PATH.
+
+
+
+in the "Testing your operating system (QEMU)", you can either run the myos.iso from the -cdrom option 
+
+                qemu-system-i386 -cdrom myos.iso
+
+or boot the multiboot kernels directly without bootable medium by doing 
+                
+                qemu-system-i386 -kernel myos.bin
+
+
+I couldnt get GRUB to work in cygwin, so I just direclty ran myos.bin. And then it worked.

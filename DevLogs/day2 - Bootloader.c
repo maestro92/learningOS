@@ -30,13 +30,16 @@ a bit of background of how a bootloader works.
 so imagine your mother board looks like this:
 
 and on this motherboard, there is a chip that contains a bit of code. That piece of code is called BIOS.
-which is Basic Input Output System.
+The BIOS is stored in ROM (read only memory);, and it is accessed for the first time by the CPU. 
+BIOS is Basic Input Output System. 
+
+(A side note: the CPU can only receive instructiosn directly from either the BIOS or the RAM);
          ___________________________
         |      motherboard          |
         |                           |
         |     _______               |
         |    |       |              |
-        |    | BIOS  |              |
+        |    | ROM   |              |
         |    |_______|              |
         |                           |
         |                           |
@@ -49,13 +52,79 @@ which is Basic Input Output System.
 when you start your computer. BIOS is the first software that runs. It identifies your computer_s hardware, 
 configures it, test it, and connects it to your operating system for further instructions. This is called the bootprocess.
 
-THe BIOS finds the configured primary bootable device (usually the computer_s hard disk); and loads and executes the initial bootstrap
-program from the master boot record. 
+BIOS is operating system independent. its main purpose is to test the hardware. 
 
-The boot loader takes over from BIOS at boot time, load itself, load the Linux kernel into memory, 
-and then turn over execution to the kernel. Once the kernel takes over, GRUB has done its job and it is no longer needed. So in a way 
-the main point of a bootloader is to load an OS kernel and to transfer control to it. 
+The BIOS finds a target device to boot from that contains a master boot record(MBR); usually from Disk Drive, SD Card Reader, CD/DVD Rom or Hard Drive;
+When you hit F2 or F12 to change the boot sequence, this is what its happening. 
 
+The BIOS then transfer control to MBR. It loads and executes the initial bootstrap program from the master boot record. 
+It is located in the first sector of the bootable disk. Usually at 
+
+so imagine your hard disk (https://www.javatpoint.com/os-master-boot-record);
+
+the very first sector of any hard disk is the MBR. 
+
+         _____________________________________________________________
+        |  MBR     |  |  |  |             |             |             |                                                        
+        |__________|__|__|__|_____________|_____________|_____________|
+
+        <-----------------------  Entire Disk ------------------------>
+
+
+
+of course you also have the Partition Table and Disk Parititons
+
+                 Partition Table         Disk Partitions
+                    |  |  |            /        |        \
+                    |  |  |           /         |         \
+                    v  v  v          v          v          v
+         _____________________________________________________________
+        |  MBR     |  |  |  |             |             |             |                                                        
+        |__________|__|__|__|_____________|_____________|_____________|
+
+        <-----------------------  Entire Disk ------------------------>
+
+
+the important thing is that MBR is at the first sector of the hard disk. 
+Its less than 512 bytes in size. It has three main components: Primary boot loader info, Partition table info and MBR validation check.
+
+The (legacy) BIOS check bootable devices for a boot signature, a so called magic number. The boot signature is a in a boot sector (sector number 0);
+and it contains the byte sequence 0x55, 0xAA at byte offset 510 and 511. Essentially the last two bytes. 
+
+
+In the last two bytes, the MBR also contains information about GRUB. 
+
+So then GRUB loads and executes the GRUB bootloader. 
+
+There are two primary bootloaders for linux, LILO and GRUB. GRUB is pretty much the main thing now. 
+
+GRUB stands for Grand Unified Bootloader. If you have multiple kernel images, then you can choose which one you can execute. 
+GRUB will display a splash screen and waits for a few seconds. If nothing happens, it will just load the default kernel image. 
+So the GRUB will just bring the kernel into memory, provide the kernel with the information it needs to work correctly.
+Once the kernel takes over, GRUB has done its job and it is no longer needed. So in a way the main point of a bootloader 
+is to load an OS kernel and to transfer control to it. 
+
+
+TL:DR, there are a few stages 
+BIOS ---> MBR ---> GRUB ---> Init rd ---> Kernel 
+
+
+links:
+https://en.wikipedia.org/wiki/GNU_GRUB
+https://www.youtube.com/watch?v=ncUmWthHrU0
+https://www.youtube.com/watch?v=Jcan8YfLfLs
+https://www.reddit.com/r/linux/comments/b4zig/asklinux_how_does_grub_work/
+https://0xax.github.io/grub/
+https://www.youtube.com/watch?v=qIEGavnI-B4
+https://www.youtube.com/watch?v=ZtVpz5VWjAs
+
+
+
+
+
+
+-   More about GRUB
+https://www.gnu.org/software/grub/manual/grub/grub.html
 
 
 
@@ -81,12 +150,7 @@ Luckily there is the Multiboot standard, "which describes an easy interface betw
 
 
 
-links:
-https://en.wikipedia.org/wiki/GNU_GRUB
-https://www.youtube.com/watch?v=ncUmWthHrU0
-https://www.youtube.com/watch?v=Jcan8YfLfLs
-https://www.reddit.com/r/linux/comments/b4zig/asklinux_how_does_grub_work/
-https://0xax.github.io/grub/
+
 
 
 
