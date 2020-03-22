@@ -2,8 +2,10 @@ So in day 1, we built our GCC Cross-Compiler.
 
 
 
-I went on to do the Bare_Bones tutorial: 
+I started with these few Bare_Bones tutorial: 
 https://wiki.osdev.org/Bare_Bones
+https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones
+
 
 a couple of tools that will be used: 
 
@@ -31,9 +33,9 @@ so imagine your mother board looks like this:
 
 and on this motherboard, there is a chip that contains a bit of code. That piece of code is called BIOS.
 The BIOS is stored in ROM (read only memory);, and it is accessed for the first time by the CPU. 
-BIOS is Basic Input Output System. 
+BIOS is Basic Input Output System. Essentially, the BIOS code is baked into the motherboard of your PC. 
 
-(A side note: the CPU can only receive instructiosn directly from either the BIOS or the RAM);
+(A side note: the CPU can only receive instructions directly from either the BIOS or the RAM);
          ___________________________
         |      motherboard          |
         |                           |
@@ -58,7 +60,7 @@ The BIOS finds a target device to boot from that contains a master boot record(M
 When you hit F2 or F12 to change the boot sequence, this is what its happening. 
 
 The BIOS then transfer control to MBR. It loads and executes the initial bootstrap program from the master boot record. 
-It is located in the first sector of the bootable disk. Usually at 
+It is located in the first sector of the bootable disk. 
 
 so imagine your hard disk (https://www.javatpoint.com/os-master-boot-record);
 
@@ -85,28 +87,156 @@ of course you also have the Partition Table and Disk Parititons
         <-----------------------  Entire Disk ------------------------>
 
 
-the important thing is that MBR is at the first sector of the hard disk. 
-Its less than 512 bytes in size. It has three main components: Primary boot loader info, Partition table info and MBR validation check.
+the important thing is that MBR is at the first sector of the hard disk. It is 512 bytes in size. 
+The first 512 bytes is the MBR
 
-The (legacy) BIOS check bootable devices for a boot signature, a so called magic number. The boot signature is a in a boot sector (sector number 0);
-and it contains the byte sequence 0x55, 0xAA at byte offset 510 and 511. Essentially the last two bytes. 
+So the MBR also contains the MBR bootstrap program, as well as info on the partition table. 
+https://wiki.osdev.org/MBR_(x86)
+
+You can also look at the format of the x86 MBR
+in the section "MBR Format", we want to point out two important parts 
+
+Offset  Size    Description
+0x000   440     MBR Bootstrap (flat binary executable code)
+0x1FE   2       (0x55, 0xAA) "Valid bootsector" signature bytes
 
 
-In the last two bytes, the MBR also contains information about GRUB. 
+so there is some executable code at the very 440 bytes. That is the bootstrap program.
 
-So then GRUB loads and executes the GRUB bootloader. 
+The 2nd thing is the magic numbers at the very end. The (legacy) BIOS check bootable devices for a magic number in these 512 bytes. 
+It checks if byte 510 is 0x55 and byte 511 is 0xAA or (byte 511 is 0x55 or 512 is 0xAA, depending on how you phrase it); 
+Essentially the last two bytes is 0x55 0xAA. If you consider that x86 is little-endian, the last number is 0xAA55 
 
-There are two primary bootloaders for linux, LILO and GRUB. GRUB is pretty much the main thing now. 
 
-GRUB stands for Grand Unified Bootloader. If you have multiple kernel images, then you can choose which one you can execute. 
-GRUB will display a splash screen and waits for a few seconds. If nothing happens, it will just load the default kernel image. 
-So the GRUB will just bring the kernel into memory, provide the kernel with the information it needs to work correctly.
-Once the kernel takes over, GRUB has done its job and it is no longer needed. So in a way the main point of a bootloader 
-is to load an OS kernel and to transfer control to it. 
+knowing this, we have a very simple boot sector will look like:
+            
+
+                e9 fd ff 00 00 00 00 00 00 00 00 00 00 00 00 00
+                00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+                [ 29 more lines with sixteen zero-bytes each ]
+                00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 aa
+
+                                                            ^
+                                                            |
+
+The first 3 bytes perform an infinite jump. That is our Boottrap code 
+
+so for our first boot sector code, it looks like:
+            
+                // (e9 fd ff)
+                loop:   
+                    jmp loop
+
+                times 510-($-$$) db 0
+                dw 0xaa55
+
+note that this is written in NASM
+[https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones]
+
+
+
+Now to run this our bootloader code, we can just run the line 
+
+                nasm -f bin boot_sect_simple.asm -o boot_sect_simple.bin
+
+and then we run it in qemu 
+                
+                qemu-system-x86_64 boot_sect_simple.bin
+
+
+so to understand what is going on, so if you look at the qemu command 
+                
+                qemu-system-x86_64 [disk_image]
+
+disk_image is essentially a binary map of the hard disk. so when we compile our boot sector code as a binary code,
+we give it to qemu, and qemu will interpret it as a hard disk.
+
+
+
+
+
+
+https://neosmart.net/wiki/mbr-boot-process/
+if you think about it, 440 bytes is very little, so usually what happens is that you have to look up 
+another file from the disk and load it to perform the actual boot process. So oftentimes 
+the job of the bootstrap code segment in the MBR is pretty simple: look up the active partition from the partition 
+table, and load that code into the memory for the execution by the CPU as the next link in the boot chain. 
+
+so it goes from the BIOS to the bootstrap code in the MBR, then from the MBR to the bootstrap code in the partition bootsector, 
+and from there to the executable boot files on the active partition, the actual logic involved in determining which
+ operating system to load, where to load it from, which parameters/options to pass on to it, 
+ and completing any interactions with the user that might be available, the actual process of starting the operating system begins.
+
+So the actual bootloader files on the disk forms the final parts of the boot loading process. When people talk about 
+bootloaders and boot files, they are often referring to this final, critical step of the boot process. 
+
+
+So almost all bootlaoders separate the actual, executable bootloader from the configuration file or database 
+that contains information about the OS to load. All of the bootloaders mentioned below have support for loading 
+multiple OS, a process known as multi-booting. 
+
+There are many bootloaders out there, each os has its own bootloader, specifically designed to read its file system 
+and locate the kernel that needs to be loaded for OS to run. Each of the popular OS has its own default bootloader.
+Windows NT, 2000, and XPas well as Windows Server 2000, and WIndows Server 2003 use the NTLDR bootloader.
+WIndows Vista introduced the BOOTMGR bootloader, currently used by Windows Vista, 7, 8, 10. For Linux, 
+GRUB is the most popular bootloader for Linux, though it can boot numerous other OSes as well. 
+
+
+GRUB_s confugration file containing a whitespace-formatted list of OS was often called menu.lst or grub.lst,
+and found under the /boot/ or /boot/grub/ directory
+
+now there is GRUB2l which is confusingly called GRUB. The previous GRUB is now legacy GRUB. 
+the actual bootloader file for GRUB2 is usually called core.img. 
+
+
+
+
+
+https://help.ubuntu.com/community/Grub2/Installing
+if you actually go to the Grub2 site, it says: 
+
+        " GRUB 1.99 is included on Ubuntu releases 11.04 (Natty Narwhal) and later.
+
+        The GRUB 2 bootloader is included on all currently-supported versions of the Ubuntu family. 
+        GRUB 2 can accomodate traditional computer firmware such as BIOS as well as the newer EFI/UEFI standards. 
+        It is compatible with MBR, GPT and other partitioning tables."
+
+so essentially when you download a OS, and you burn it onto a USB stick, GRUB is included. 
+
+
+
+
+
+
+
+
+https://askubuntu.com/questions/347203/what-exactly-is-grub
+
 
 
 TL:DR, there are a few stages 
-BIOS ---> MBR ---> GRUB ---> Init rd ---> Kernel 
+
+System startup              BIOS
+
+    |
+    |
+    v 
+Stage 1 bootloader          Master Boot Record 
+
+    |
+    |
+    v
+stage 2 bootloader          GRUB 
+
+    |
+    |
+    v
+  Kernel                    Linux
+
+    |
+    |
+    v
+   init                     User space
 
 
 links:
@@ -117,36 +247,75 @@ https://www.reddit.com/r/linux/comments/b4zig/asklinux_how_does_grub_work/
 https://0xax.github.io/grub/
 https://www.youtube.com/watch?v=qIEGavnI-B4
 https://www.youtube.com/watch?v=ZtVpz5VWjAs
-
-
-
-
-
-
--   More about GRUB
 https://www.gnu.org/software/grub/manual/grub/grub.html
+https://www.youtube.com/watch?v=mHB0Z-HUauo
+
+
+
+So to type out 'Hello', we will do 'Write Character in TTY mode' BIOS Interrupt Call
+
+
+http://3zanders.co.uk/2017/10/13/writing-a-bootloader/
+https://github.com/cfenollosa/os-tutorial/tree/master/02-bootsector-print
+
+
+                mov ah, 0x0e ; tty mode
+                mov al, 'H'
+                int 0x10
+                mov al, 'e'
+                int 0x10
+                mov al, 'l'
+                int 0x10
+                int 0x10 ; 'l' is still on al, remember?
+                mov al, 'o'
+                int 0x10
+
+                jmp $ ; jump to current address = infinite loop
+
+                ; padding and magic number
+                times 510 - ($-$$) db 0
+                dw 0xaa55 
+
+
+
+-   Quoting Wikipedia  
+        a note about BIOS interrupt calls. BIOS only runs in the real address mode (Real Mode); of the x86 CPU, 
+        so programs that call BIOS either must also run in treal mode or must switch from protected mode 
+        to real mode before calling BIOS and then switching back again. For this reason, modern operating systems that 
+        use the CPU in Protected mode generally do not use the BIOS to support system functions. 
+
+
+        invoking an interrupt can be done using the INT x86 assembly language instruction. For example, to print a character 
+        to the screen using BIOS interrupt 0x10, the following x86 assembly language instructions could be executed 
+
+                mov ah, 0x0e    ; function number = 0Eh : Display Character
+                mov al, '!'     ; AL = code of character to display
+                int 0x10        ; call INT 10h, BIOS video service
+
+        https://en.wikipedia.org/wiki/BIOS_interrupt_call
+
+in the wikipedia page, you can also see it has the Interrupt table. 
+here to put characters on the screen, its generally in the format of 
+
+
+        ah                  al 
+
+        _ _ _ _ _ _ _ _     _ _ _ _ _ _ _ _
+
+
+we put ah with 0x0e, that tells the BIOS that we want video services 
+we put al with the actual character data, that tells the BIOS the actual character we want to display. 
 
 
 
 
-so there is this Multiboot specification, which is a specification of how to .....
+-   times 510 - ($-$$) db 0
 
+$ means current address 
+$$ means the first address of the current section. 
+so $-$$ gives you the offset from start to address of the currently executed instruction. 
 
-
-        "Bootloader is a piece of code/program that runs before an operating system starts to run. 
-        It loads an operating system when a computer is turned on. It tells the hardware where to look and how to get running when you start things up.
-
-        So in this tutorial, you will be using GRUB. 
-
-        GRUB is the GNU projects bootloader. 
-        https://www.cs.tau.ac.il/telux/lin-club_files/linux-boot/slide0002.htm"
-
-
-so in the description above, you can see that the bootloader will have to run some code to load our OS. 
-in our minimal OS bare bones tutorial, that "some code" is gonna be our boot.s. 
-That boot.s is gonna tell the GRUB, the bootloader how to load and start our kernel.c. So that is the basic idea. 
-
-Luckily there is the Multiboot standard, "which describes an easy interface between the bootloader and the operating system kernel"
+https://engineersasylum.com/t/times-510-db-0-means/132
 
 
 
@@ -154,31 +323,20 @@ Luckily there is the Multiboot standard, "which describes an easy interface betw
 
 
 
+So when the GRUB loads in a kernel, it expects the kernel to be of a certain format. 
+The format that the kernel follows is the Multiboot specification. The multiboot is a standard 
+to which GRUB expects a kernel to comply. It is a way for GRUB to 
 
--   multi-booting 
+1.  know exaclty what environment the kernel wants/needs when it boots 
+2.  allow the kernel to query the environment it is in. 
 
-Multiboot is about loading various kernels using a single boot loader.
-installing multiple OS on a computer, and being able to choose which one to boot. 
+So for example, if your kernel needs to be loaded in a specific VESA mode, you can inform the bootloader of this, 
+and it can take care of it for you. 
 
-
-https://stackoverflow.com/questions/17698121/what-is-meant-by-multiboot-header
-
-
-
--   multiboot standard
-
-So there is a multiboot specification. It is an open standard that provides kernels with a uniform 
-way to be booted by Multiboot-compliant bootloaders. 
-
-The Multiboot specification is an open standard describing how a boot loader can load an x86 operating system kernel.
-The specification allows any compliant boot-loader implementation to boot any compliant operating-system kernel. 
+So to make your kernel multiboot compatible, you need to add a header structure somwhere in your kernel (actually 
+the header must be in the first 4KB);
 
 
-
-
-
-
-https://stackoverflow.com/questions/23854755/who-defines-the-bootloader-specification
 
 
 
@@ -492,4 +650,69 @@ MBR partitions start and end numbers are fixed at 32bit, which means you can_t h
 
 GPT leaves the first sector blank, for backwards compatibility and for safety. Then it uses the next 62 sectors to store the partition table. This is a lot larger than the old 90B partitioning table you used to have. It is 64 bit, and allows for 128 raw partitions,
  instead of just 4. It does away with MBR_s "extended" partitioning which used a complex linked list of EBRs. If you want to use GPT but have BIOS instead of EFI, you can. Grub2 can install to the first sector (conveniently left blank), and you make one of your 128 partitions a tiny 31kB partition just for GRUB, using FAT. Your BIOS will boot grub2, grub2 will load more information from the grub_boot partition, and then it can find the /boot where it finds its config and presents a menu, and it can then chainload or load a kernel or boot usb or whatever you need.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so there is this Multiboot specification, which is a specification of how to .....
+
+
+
+        "Bootloader is a piece of code/program that runs before an operating system starts to run. 
+        It loads an operating system when a computer is turned on. It tells the hardware where to look and how to get running when you start things up.
+
+        So in this tutorial, you will be using GRUB. 
+
+        GRUB is the GNU projects bootloader. 
+        https://www.cs.tau.ac.il/telux/lin-club_files/linux-boot/slide0002.htm"
+
+
+so in the description above, you can see that the bootloader will have to run some code to load our OS. 
+in our minimal OS bare bones tutorial, that "some code" is gonna be our boot.s. 
+That boot.s is gonna tell the GRUB, the bootloader how to load and start our kernel.c. So that is the basic idea. 
+
+Luckily there is the Multiboot standard, "which describes an easy interface between the bootloader and the operating system kernel"
+
+
+
+
+
+
+
+
+-   multi-booting 
+
+Multiboot is about loading various kernels using a single boot loader.
+installing multiple OS on a computer, and being able to choose which one to boot. 
+
+
+https://stackoverflow.com/questions/17698121/what-is-meant-by-multiboot-header
+
+
+
+-   multiboot standard
+
+So there is a multiboot specification. It is an open standard that provides kernels with a uniform 
+way to be booted by Multiboot-compliant bootloaders. 
+
+The Multiboot specification is an open standard describing how a boot loader can load an x86 operating system kernel.
+The specification allows any compliant boot-loader implementation to boot any compliant operating-system kernel. 
+
+
+
+
+
+
+https://stackoverflow.com/questions/23854755/who-defines-the-bootloader-specification
+
 
