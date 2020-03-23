@@ -1,3 +1,35 @@
+So in day 1, we built our GCC Cross-Compiler. 
+
+
+
+I started with these few Bare_Bones tutorial: 
+https://wiki.osdev.org/Bare_Bones
+https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones
+
+
+a couple of tools that will be used: 
+
+-   The GNU Linker from Binutils to link your object files into the final kernel.
+-   The GNU Assembler from Binutils (or optionally NASM) to assemble instructions into object files containing machine code.
+-   The GNU Compiler Collection to compile your high level code into assembly.
+-   The GRUB bootloader to bootload your kernel using the Multiboot boot protocol that loads us into 32-bit protected mode with paging disabled.
+-   The ELF as the executable format that gives us control of where and how the kernel is loaded.
+
+
+three input files 
+boot.s - kernel entry point that sets up the processor environment
+kernel.c - your actual kernel routines
+linker.ld - for linking the above files
+
+
+
+
+
+
+
+
+
+
 So lets move on to the next part of the tutorial where it talks about the kernel.c 
 
 so the first line of the tutorial says 

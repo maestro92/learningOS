@@ -1,30 +1,11 @@
-So in day 1, we built our GCC Cross-Compiler. 
 
-
-
-I started with these few Bare_Bones tutorial: 
-https://wiki.osdev.org/Bare_Bones
-https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones
-
-
-a couple of tools that will be used: 
-
--   The GNU Linker from Binutils to link your object files into the final kernel.
--   The GNU Assembler from Binutils (or optionally NASM) to assemble instructions into object files containing machine code.
--   The GNU Compiler Collection to compile your high level code into assembly.
--   The GRUB bootloader to bootload your kernel using the Multiboot boot protocol that loads us into 32-bit protected mode with paging disabled.
--   The ELF as the executable format that gives us control of where and how the kernel is loaded.
-
-
-three input files 
-boot.s - kernel entry point that sets up the processor environment
-kernel.c - your actual kernel routines
-linker.ld - for linking the above files
-
+So the tutorial I am following is: 
+https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf
+https://github.com/cfenollosa/os-tutorial
 
 
 ##########################################################################################
-################################## bootloader and boot.s #################################
+################################## bootloader ############################################
 ##########################################################################################
 
 a bit of background of how a bootloader works.
@@ -139,6 +120,13 @@ Now to run this our bootloader code, we can just run the line
 
                 nasm -f bin boot_sect_simple.asm -o boot_sect_simple.bin
 
+
+the -f bin option is used to instruct nasm to produce raw machine code, rather than a code 
+package that has additional meta information for linking in other routines that we would expect to use 
+when programming in a more typical Operating system enviornment 
+
+
+
 and then we run it in qemu 
                 
                 qemu-system-x86_64 boot_sect_simple.bin
@@ -252,8 +240,46 @@ https://www.youtube.com/watch?v=mHB0Z-HUauo
 
 
 
-So to type out 'Hello', we will do 'Write Character in TTY mode' BIOS Interrupt Call
 
+#########################################################################
+################## 16 bit real mode #####################################
+#########################################################################
+
+So when running the code above, I would like to mention that we are in 16-bit real mode 
+
+BIOS boots us into 16-bit real addressing mode. People also call it real mode. 
+quoting this link: https://wiki.osdev.org/Real_Mode
+
+        "Real Mode is a simplistic 16-bit mode that is present on all x86 processors. 
+        Real Mode was the first x86 mode design and was used by many early operating systems before the birth of Protected Mode. 
+        For compatibility purposes, all x86 processors begin execution in Real Mode."
+
+So essentially to have backward compatibility, the solution Intel used is to emualte the oldest CPU in the family: 
+the Intel 8086, which ad support for 16-bit instructions and no notion of memory protection. Later on we will 
+be switching into 32 bit or 64 bit protected mode. 
+
+
+
+########################################################################
+############################# Print out Hello ##########################
+########################################################################
+
+So now to output characters on the screen, we will be using interrupts. 
+Interrupts are a mechanism that allow the CPU temporarily to halt what it is doing and
+run some other, higher-priority instructions before returning to the original task. An
+interrupt could be raised either by a software instruction (e.g. int 0x10) or by some
+hardware device that requires high-priority action (e.g. to read some incoming data from a network device).
+
+So when the BIOS starts up, it sets up a table at the start of memory (at physical memory addres 0x0) 
+you can actually see the address of each entry in the table
+https://www.matrix-bios.nl/system/ivt.html
+
+each entry occupies 4 bytes and each entry contains address pointers to interupt service routines (ISRs);
+An ISRs is simply some code that handls a specific interrupt. So the BIOS calls the ISRs based on the index 
+based into one of the CPU_s general purpose registers, ax. 
+
+
+so lets get into coding. To type out 'Hello', we will do 'Write Character in TTY mode' BIOS Interrupt Call
 
 http://3zanders.co.uk/2017/10/13/writing-a-bootloader/
 https://github.com/cfenollosa/os-tutorial/tree/master/02-bootsector-print
@@ -294,6 +320,8 @@ https://github.com/cfenollosa/os-tutorial/tree/master/02-bootsector-print
 
         https://en.wikipedia.org/wiki/BIOS_interrupt_call
 
+so essentially if you go into protected mode, you lose the BIOS interrupt calls
+
 in the wikipedia page, you can also see it has the Interrupt table. 
 here to put characters on the screen, its generally in the format of 
 
@@ -316,6 +344,226 @@ $$ means the first address of the current section.
 so $-$$ gives you the offset from start to address of the currently executed instruction. 
 
 https://engineersasylum.com/t/times-510-db-0-means/132
+
+
+
+-   db
+db, dw, dd, dq, dt, do, dy and dz are all used in nasm to define varaibles 
+
+db is declare bytes 
+dw is declare word 
+dq is declare 8 byte constant
+dt is declare extended-precision float
+
+
+
+
+with this code, our whole bootsector program now looks like: 
+
+b4 0e b0 48 cd 10 b0 65 cd 10 b0 6c cd 10 b0 6c
+cd 10 b0 6f cd 10 e9 fd ff 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+***************** a bunch of 0s ***************
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 aa
+
+
+#####################################################################
+################## BootSector Memory Location #######################
+#####################################################################
+
+
+another thing is that all code run by the CPU is somehwere in. The CPU fetches and executes instructions from memory. 
+So for our boot sector code, we are initially in the hard drive. The BIOS loaded our 512-byte boot sector into memory and then, having finished 
+its initialisations, told the CPU to jump to the start of our code, whereupon it began executing our first instructions,
+then the next, then the next, etc. 
+
+As it turns out, BIOS like always to load the boot sector to the address 0x7c00
+
+
+
+so try this tutorial to really understand that the boot sector is at 0x7c00
+https://github.com/cfenollosa/os-tutorial/tree/master/03-bootsector-memory
+
+
+
+instead of manually every address with 0x7c00, what you can do is to use a ORG directive, 
+to specify the origin address which NASM will assume the program begins at when 
+it is loaded into memory. 
+https://nasm.us/doc/nasmdoc7.html
+
+
+
+
+
+#####################################################################
+####################### BootSector Stack ############################
+#####################################################################
+
+https://github.com/cfenollosa/os-tutorial/tree/master/04-bootsector-stack
+
+essentially we have ebp and esp registers 
+
+ebp points to the base of your stack 
+esp points to the top of your stack
+
+     low memory 
+     ___________      0x00000000
+    |           |
+    |           |
+    |___________|
+    |           |  <----- esp   
+    |___________|   
+    |           |   ^
+    |___________|   |
+    |           |   |
+    |___________|   |
+    |           |
+    |___________|  <----- ebp 
+    |           |
+    |           |
+
+     high memory 
+
+
+so in the code here, we have 
+
+
+
+
+     low memory 
+     ___________      0x00000000
+    |           |
+    |           |
+    |___________|
+    |           |    
+    |___________|   
+    |     C     |  <----- esp 
+    |___________|   
+    |     B     |   
+    |___________|   
+    |     A     |
+    |___________|  <----- ebp   0x8000
+    |           |
+    |           |
+
+     high memory 
+
+
+
+-   [] in nasm 
+square brackets essentially work like a dereference operator (e.g., like * in C);
+
+so 
+
+                mov  REG, x 
+
+moves the value of x into REG
+whereas 
+                
+                mov REG, [x]
+
+moves the value of the memory location where x points into in REG. 
+Note that if x is a label, its value is the address of that label 
+
+
+
+
+
+#####################################################################
+####################### Reading Disk Sectors ########################
+#####################################################################
+
+
+As previously mentioned, our OS wont fit inside the bootsector 512 bytes, so we need to read 
+data from a disk in order to run the kernel. 
+
+
+https://github.com/cfenollosa/os-tutorial/tree/master/07-bootsector-disk
+
+The main thing being used here is the BIOS interrupt calls on the disk serivce. 
+recall that int 10h gave us the video services, 
+
+int 13h gave us the Low Level Disk Services
+https://en.wikipedia.org/wiki/BIOS_interrupt_call
+https://en.wikipedia.org/wiki/INT_13H
+
+
+so apparenlty, if you want to read data from the disk using the BIOS itnerrupt calls, 
+you have to set a shit ton of register values. 
+Details can be seen here 
+
+http://stanislavs.org/helppc/int_13-2.html
+
+so you have to set 
+                
+                AH to be 0x02
+                AL to the number of sectors you want to read 
+                CH the track/cylinder number 
+                CL sector number 
+                DH head number
+                DL drive number 
+                ES:BX pointer to buffer
+
+
+
+
+in the tutorial, in boot_sect_main.asm, you can see that 
+
+
+
+                [org 0x7c00]
+                    mov bp, 0x8000 ; set the stack safely away from us
+                    mov sp, bp
+
+                    mov bx, 0x9000 ; es:bx = 0x0000:0x9000 = 0x09000
+                    mov dh, 2 ; read 2 sectors
+                    ; the bios sets 'dl' for our boot disk number
+                    ; if you have trouble, use the '-fda' flag: 'qemu -fda file.bin'
+                    call disk_load
+
+
+we called 
+                
+                mov bx, 0x9000
+
+to set the "pointer to buffer" when we do our disk read call. 
+
+
+
+-   pusha, popa 
+pusha and popa means push all register values and pop all register values. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
