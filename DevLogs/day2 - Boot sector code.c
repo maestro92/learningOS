@@ -10,13 +10,20 @@ https://github.com/cfenollosa/os-tutorial
 
 a bit of background of how a bootloader works.
 
-so imagine your mother board looks like this:
+so imagine your motherboard looks like this:
 
-and on this motherboard, there is a chip that contains a bit of code. That piece of code is called BIOS.
+on the motherboard, there is a chip that contains a bit of code. That piece of code is called BIOS.
 The BIOS is stored in ROM (read only memory);, and it is accessed for the first time by the CPU. 
 BIOS is Basic Input Output System. Essentially, the BIOS code is baked into the motherboard of your PC. 
 
 (A side note: the CPU can only receive instructions directly from either the BIOS or the RAM);
+
+https://stackoverflow.com/questions/20861032/who-loads-the-bios-and-the-memory-map-during-boot-up
+
+so a lot of times nowadays, since RAM is faster than ROM, the BIOS is copied to RAM and run it from there.
+Note that the copy isnt done by some magic circuitry, it is just done by the BIOS itself when it 
+starts executing out of ROM initially, it just copies itself to RAM and then continues executing from there. 
+https://superuser.com/questions/336021/is-bios-read-from-the-bios-chip-or-copied-into-ram-on-startup
          ___________________________
         |      motherboard          |
         |                           |
@@ -258,6 +265,19 @@ So essentially to have backward compatibility, the solution Intel used is to emu
 the Intel 8086, which ad support for 16-bit instructions and no notion of memory protection. Later on we will 
 be switching into 32 bit or 64 bit protected mode. 
 
+-   RAM avilable
+
+So one thing that is quite trick is that when the computer is in 16 bit real mode, you would think that the computer would have 
+64 kb of memory since 
+
+16 bit is 10000 in hex, 65536 in decimal, 10000000000000000 in binary 
+
+but one thing you might not know is that in 16 bit mode, addressing is done using SS and SP (Stack segment and stack pointer);
+so its the SS:SP combo with SS pointing to the stack and SP pointing to the stack pointer. 
+so its 20 bit wide addressing
+
+hence the amount of memory is actually 2^20, which gives you 1 MB 
+
 
 
 ########################################################################
@@ -380,7 +400,6 @@ then the next, then the next, etc.
 As it turns out, BIOS like always to load the boot sector to the address 0x7c00
 
 
-
 so try this tutorial to really understand that the boot sector is at 0x7c00
 https://github.com/cfenollosa/os-tutorial/tree/master/03-bootsector-memory
 
@@ -390,6 +409,38 @@ instead of manually every address with 0x7c00, what you can do is to use a ORG d
 to specify the origin address which NASM will assume the program begins at when 
 it is loaded into memory. 
 https://nasm.us/doc/nasmdoc7.html
+
+
+To give you an idea where 0x7c00 is in memory 
+
+0x7c00 is 11111 0000000000 in binary 
+which is 31 KB
+
+                 ___________________    <--------- 0x00000000 
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |___________________|   <--------- 0x00007C00 (31 kb)         
+                |                   |
+                |   bootsector      |
+                |                   |
+                |                   |
+                |___________________|   <--------- 0x00008000 (32 kb)
+
+
+as you can see, its 1 kb short of 32 kb. The reason why why bootsector code is at 0x7c00 is becuz 0x7c00 is 1k 
+(512 bytes for the bootsector plus an additional 512 bytes 
+for possible bootsector use) from the bottom of the original 32k installed memory. 
+
+https://stackoverflow.com/questions/2058690/what-is-significance-of-memory-at-00007c00-to-booting-sequence
 
 
 
@@ -558,8 +609,9 @@ pusha and popa means push all register values and pop all register values.
 
 
 
-
-
+####################################################################################################
+################### dont go below here #############################################################
+####################################################################################################
 
 
 
