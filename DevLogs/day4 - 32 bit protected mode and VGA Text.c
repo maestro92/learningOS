@@ -24,6 +24,7 @@ advantages, but we will lose BIOS interrupts and we will need to code the GDT, g
 
 real mode provides no support for memory protection, multitasking, or code privilege levels 
 
+Protected mode is also called protected virtual address mode. 
 
 
 -   GDT
