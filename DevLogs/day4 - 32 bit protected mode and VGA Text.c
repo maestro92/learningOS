@@ -1,4 +1,80 @@
 
+
+
+####################################################################################
+############################## real mode vs protected mode #########################
+####################################################################################
+
+This is all on the topic of x86 segmentation, the terminology of "real mode" and "protected mode" is all related to x86 segmentation.
+
+A bit of history: 
+
+-   8086
+so Segmentation was introduced on the Intel 8086 in 1978 as a way to allow programs to address more than 64 KB (16 bits) of memory 
+hence we have the 20 bit addressing of Segment:Offset pairs for memory addressing. 20 bit gives you 1 MB of RAM. 
+if you think about it, any address can be represented by up to 4096 distinc segment:offset pairs. 
+
+when the memory segmentation was first developed, it does not provide any protection. Any program running on these processors can access 
+any segment with no restrictions. 
+
+As the cost of memory use increased, the 1 MB limiitation became a signification problem Intel intended to solve 
+this limitation along with others with the release of 80286. 
+
+
+-   80286
+The intel 80286 introduced a 2nd version of segmentation in 1982 that added support for virtual memory and memory protection.
+So its was the first x86 equipped with a memory management unit (MMU), allowing virtual memory.
+At this point the original model was renamed "real mode", and the new version was named "protected mode". 
+
+So Segmentation in the Intel 80286 and later provides protection, and at this point, Intel named the previous mode "real mode" and 
+this new mode "protected mode" with protection features.   
+
+Apparently the "protected mode" is also called virtual memory mode. In lay man_s terms, a virtual memory machine is just a machine 
+that maps a larger memory space (1G for the 80286) into a much smaller physical memory space (16M bytes for 80286). 
+
+
+-   80386
+Then intel introduced 80386 in 1985. 80386 was like the 32-bit extension of the 80286 architecture. In Intel 80386 and later processors 
+also support paging. Its protected mode retains the segmentation mechnaism of 80286 protected mode. 80386 had 32 bits, which allows 
+for 2^32 bytes of memory, which is 4 GB. 
+
+So a paging unit was added as a second layer of address translation between the segmentation unit and the physical bus. 
+In those processors, the segment table, rather than pointing to a page table for the segment, contains the segment address in linear memory. 
+Addresses in linear memory are then mapped to physical addresses using a separate page table, if paging is enabled.
+
+If paging unit is enabled, addresses in a segment are now virtual addresses, rather than physical addresses as they were on the 
+80286. The 80386 also introduced two new general-purpose data segment registers, FS and GS. 
+
+
+
+the x86-64 architecture, introduced in 2003, has largely dropped support for segmentation in 64-bit mode.
+In a x86-64 architecture it is considered legacy and most x86-64-based modern system software dont use memory segmentation.
+Four of the segment registers: CS, SS, DS, and ES are forced to 0, and the limit to 2^64. 
+The segment registers FS and GS can still have a nonzero base address. Unlike the global descriptor table mechanism used by legacy modes,
+the base address of these segments is stored in a model-specific register.
+
+To support old software, the processor starts up in "real mode", a mode in which it uses the segmented addressing model of the 8086. 
+
+https://en.wikipedia.org/wiki/X86_memory_segmentation
+https://en.wikipedia.org/wiki/Protected_mode
+
+
+
+-   Segment registers in real mode 
+
+In both real and protected modes, the system uses 16-bit segment registers to derive the actual memory address. In real mode, 
+the registers CS, DS, SS and ES point to the currently used program code segment (CS), the current data segment (DS),
+the current stack segment (SS), and one extra segment determined by the programmer (ES). 
+
+-   Segment registers in protected mode 
+
+The 80286_s protected mode extends the processor_s address space to 224 bytes (16 megabytes), but not by adjusting the shift value. 
+Instead, the 16-bit segment registers now contain an index into a table of segment descriptors containing 
+24-bit base addresses to which the offset is added.
+
+
+
+
 ####################################################################################
 ############################## 32 bit protected mode ###############################
 ####################################################################################
@@ -6,7 +82,10 @@
 continuing on the tutorial, we look at Chapter 4
 https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf
 
-So on day2, we have been working in 16 bit real mode, now we want to go into 32-bit protected mode 
+As mentioned, from day2, we have been working in 16 bit real mode, now we want to go into 32-bit protected mode 
+Essentially we want to do the thing that was introduced in 80386. So 80286 was still a 16-bit processor,
+80386 was 32bit. So that gives you an idea of what we are doing. 
+
 
 The reason why we want to go into 32 bit protected mode is because: 
 
@@ -26,12 +105,17 @@ real mode provides no support for memory protection, multitasking, or code privi
 
 Protected mode is also called protected virtual address mode. 
 
+So that is what we want to do 
+
+
+
+
 
 -   GDT
 So as mentioned, we will need to prepare a complex data structure in memory called the global descriptor table (GDT),
 which defines memory segments and thir protected-mode attributes. 
 
-So intel defines 3 types of tables, the INterrupt Descriptor Table (IVT), the Global Descriptor Table (GDT) 
+So intel defines 3 types of tables, the Interrupt Descriptor Table (IVT), the Global Descriptor Table (GDT) 
 and the Local Descriptor Table. Each table is defined as a (size, linear address) to the CPU through the 
 LIDT, LGDT, LLDT instructions respectively. In most cases, the OS simply tells where those tables rae once at boot time,
 and then simply goes writing/reading the tables through a pointer. 

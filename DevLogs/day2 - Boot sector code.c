@@ -127,11 +127,15 @@ Now to run this our bootloader code, we can just run the line
 
                 nasm -f bin boot_sect_simple.asm -o boot_sect_simple.bin
 
+for all the compile flags, try 
+
+                nasm -help 
 
 the -f bin option is used to instruct nasm to produce raw machine code, rather than a code 
 package that has additional meta information for linking in other routines that we would expect to use 
 when programming in a more typical Operating system enviornment 
 
+"-o outfile", write output to an outfile
 
 
 and then we run it in qemu 

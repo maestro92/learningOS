@@ -1,3 +1,8 @@
+###############################################################################
+####################### x86 memory segmentation ###############################
+###############################################################################
+
+
 So we already know that the GDT describes certain info about the parts of the memory 
 its also a way to protect certain parts of the memory 
 
@@ -103,8 +108,13 @@ another thing is that GRUB sets a GDT up for you.
 
 
 ###########################################################################
-######################## GDT entry ########################################
+######################## GDT Table ########################################
 ###########################################################################
+
+So we actually have to define to things, the GDT descriptor and the GDT table itself.
+details can be seen here 
+https://wiki.osdev.org/Global_Descriptor_Table
+
 
 
 Each GDT entry also defines whether or not the current segment that the processor is running in is for System use 
@@ -112,33 +122,61 @@ Each GDT entry also defines whether or not the current segment that the processo
 Major operating systems today only use Ring 0 and Ring 3.
 
 
+one may ask, why is the gdt entry designed this way:
+https://softwareengineering.stackexchange.com/questions/404412/why-is-the-data-for-an-x86-gdt-entry-designed-this-way
+
+The short answer is, mainly for backwards compatibility. the x86 was originally 16-bit, then it had to evolve to work with 
+larger registers.
 
 
 
 
 
 
+so detailed explanation of the values can be found here:
+https://wiki.osdev.org/GDT
+
+
+The base is a 32 bit value containing the linear address where the segment begins 
+The limit, 
+apparently the processor_s interpretation of the limit dependsd on the setting of the G (granularity) bit 
+For data segments, the processor_s interpretation of the limit depends also on the E-bit (expansion-direction bit) 
+and the B-bit (big bit)
+
+When G = 0, it means use bytes. the actual imit is the value of the 20-bit field as it appears in the descriptor. 
+In this case, the limit may range from 0 to 0FFFFFH (220 - 1 or 1 megabyte). 
+
+When G = 1, it means use 4KiB. the processor appends 12 low-order one-bits to the value in the limit field. 
+In this case the actual limit may range from 0FFFH (212 - 1 or 4 kilobytes) to 0FFFFFFFFH (232 - 1 or 4 gigabytes).
+
+https://stackoverflow.com/questions/26577692/what-exactly-does-the-granularity-bit-of-a-gdt-change-about-addressing-memory
+
+
+
+also notice in the doc, the order is reveresd
+where we first fill in data on the 2nd line (first filling in Base address then Segment Limit)
+then the 1st line 
+
+the link on the OS dev website has the correct order
+https://wiki.osdev.org/Global_Descriptor_Table
 
 
 
 
+for our descriptor table, 
+
+the size is two bytes, the offset is 4 bytes 
+so for size we just do 
+        
+
+                gdt_descirptor:
+                    dw  gdt_end - gdt_start - 1 
+
+                    dd  gdt_start 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+so we wrote the stuff in 32bit-gdt.asm
 
 
 
@@ -146,38 +184,259 @@ Major operating systems today only use Ring 0 and Ring 3.
 ################################### Switching #############################
 ###########################################################################
 
-We first tell the CPU about the GDT we just prepared 
+links:
+https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf
+(chapter 4.4)
+
+https://wiki.osdev.org/Protected_Mode
+
+
+so we have defined the GDT. 
+we do a few things to do the switch 
+here is an example: 
+
+1.  Disable Interrupts 
+2.  Load GDT desecriptor
+3.  Set the first bit of a special CPU control register, cr0
+4.  make far jump 
+
+-   Then we make the actual swtich, by setting the first bit of a special CPU control register, cr0.
+
+
+-   after the cr0 has been updated, the CPU is in protected mode. 
+
+    we will want to call a far jump, which will force the CPU to flush the pipeline (complete 
+    all of instructiosn currently in different stages of the pipeline)
+
+    note that a near jump may not be enough to flush the pipeline (jmp start_protected_mode).
+    so we want to think about where we walnd. Our current code segment (ie, cs) will not be valid 
+    in protected mode, so we must update our cs register to the offset of our code segment descriptor of our GDT. 
+
+    in our case its CODE_SEG which we calculated in our 32bit-gdt.asm. recall the first entry is 0x0, 
+    the 2nd entry is 0x8. so that is what our code segment register should point to. 
+
+    Note that by the very definition of a far jump, it will automatically cause the CPU to update our cs register 
+    to the target segment. 
+
+    to issue a far jump, as opposed to a near jump, we additionall provde the target segment 
+
+                jmp <segment>:<address offset>
+
+    so in our case, we just do 
+
+                jmp CODE_SEG:start_protected_mode
+
+    
+
+-   full code below:
         
 
+                cli
                 lgdt [gdt_descirptor]
-
-
-Then we make the actual swtich, by setting the first bit of a special CPU control register, cr0.
-                
                 mov eax, cr0 
                 or eax, 0x1
                 mov cr0, eax 
-
-after the cr0 has been updated, the CPU is in 32-bit protected mode. 
-
+                jmp CODE_SEG:init_protected_mode
 
 
-
+               
 
 
 
+after we switched, we need to tell our code to be in 32 bit and we do a bunch of initalization for the protected mode 
+
+-   the [bits 32] directive tells our assembler that from that point onwards, it should encode in 32-bit mode instructions.
+    so now we are both 32 bit and protected mode 
+
+
+-   we then should update all the other segment registers so they now point to our 32-bit data segment 
+    (rather than the now invalid real mode segments) and update the position of our stack 
+
+                [bits 32]
+                init_protected_mode:
+                   mov   ax, DATA_SEG       ; 0x10 points at the new data selector
+                   mov   ds, ax
+                   mov   ss, ax
+                   mov   es, ax
+                   mov   fs, ax
+                   mov   gs, ax
+
+                   mov ebp, 0x90000     ; update the stack again
+                   mov esp, ebp         ;   
+
+
+                   call start_protected_mode        
 
 
 
 
 
 
-
-So you offically go into protected mode after the system sets up one descriptor table and enables the 
-Protection Enable (PE) bit in the control register 0 (CR0).
-
-https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf
+we use the [bits 32] directive to tell our assembler that from that point onwards, 
+it should encode in 32-bit mode instructions. 
 
 
+#######################################################################
+######################## Debugging ####################################
+#######################################################################
+
+-   gdb and qemu
+so obviously, our current code is getting a bit complicated, and your code may not run fine, so we have to debug.
+So to debug in qemu, this is what you have to do
+
+https://wiki.osdev.org/Kernel_Debugging#Use_GDB_with_QEMU
+
+                qemu -s -S <harddrive.img>
+
+the '-s' option makes qemu listen on port tcp::1234, which you can connect to as localhost:1234 if you are on the same machine.
+Qemu_s '-S' makes Qemu stop execution until you give the continue command. 
+
+https://stackoverflow.com/questions/11408041/how-to-debug-the-linux-kernel-with-gdb-and-qemu
+https://stackoverflow.com/questions/9865657/operating-system-debugger-for-ubuntu-11-10/10283339#10283339
+
+now start another shell, and you can start GDB, then you can run 
+                
+                >> gdb 
+                (gdb) target remote localhost:1234
+
+and that will connect to qemu.
+so when you run gdb and you run 
+                
+                (gdb) target remote localhost:1234
+
+I was getting the error 
+                
+                "Remote 'g' packeet reply is too long:... "
+
+
+https://wiki.osdev.org/QEMU_and_GDB_in_long_mode
+
+turns out that this means qemu is running in long, which make sense cuz I am running qemu-x86-64
+so I tried qemu-system-i386, so the command looks like 
+
+                qemu-system-i386 -s -S [binary_img]
+
+https://stackoverflow.com/questions/22534152/can-nasm-generate-debug-symbol-to-binary-file
+and gdb is able to connection fine. 
+
+
+now you can see that qemu_s execution is paused, but you can really debug cuz gdb doesnt have the symbol-file 
+
+so now the question is, how do you generate the symbol-file from nasm and our hardware img 
+recall previously, the way we were compiling is 
+
+                nasm -f bin main.asm -o main.img 
+
+which is pure binary. 
+
+so turns out the following links has the solution:
+https://stackoverflow.com/questions/32955887/how-to-disassemble-16-bit-x86-boot-sector-code-in-gdb-with-x-i-pc-it-gets-tr
+
+what you want to do is to compile it as elf, and use objcopy to get the code segment out. 
+
+so lets do that, we first run 
+
+                nasm -f elf32 -g3 -F dwarf main.asm -o main.o
+
+so we see a bunch of compile flags, you can see use "nasm -help" to see what the compile flags mean 
+
+-   "-f" is the output format 
+-f bin, which we did previously is pure binary 
+-f elf32, is 32 bit elf format (executable and linkable format)
+
+-   "-g3" is 
+generating debug file
+
+-   "-F dwarf"
+ -F format is selecting a debugging format. you can see the list of supported debug file format for an output file by doing 
+ nasm -f <format> -y 
+
+for example, lets say we run 
+
+                $ nasm -f bin -y
+
+                valid debug formats for 'bin' output format are ('*' denotes default):
+                    null      Null debug format
+
+you can see, we cant generate any debug formats for pure binary file 
+
+lets say we run 
+
+                $ nasm -f elf32 -y
+
+                valid debug formats for 'elf32' output format are ('*' denotes default):
+                    dwarf     ELF32 (i386) dwarf debug format for Linux/Unix
+                    stabs     ELF32 (i386) stabs debug format for Linux/Unix
+
+and we can see we have dwarf file format 
+
+
+-   elf and org directive 
+so the next error you will see is that you can generate an elf file with nasm because of the [org] directive.
+apparently [org] doesnt make sense with elf files cuz linker can relocate an elf file to anywhere it wants.
+so the solution is to actually get rid of it. See the link above 
+
+after you remove or comment out the [org 0x7c00] line, you want to use the linker to offset the code 
+
+
+                $ ld -Ttext=0x7c00 -melf_i386 main.o -o main.elf
+
+so if you look at what does "-Ttext" does 
+
+                $ ld -help | grep Ttext
+                  -Ttext ADDRESS              Set address of .text section
+                  -Ttext-segment ADDRESS      Set address of text segment
+
+
+essentially we are offseting the text segment, which will do equivalently what [org 0x7c00] does. 
+
+the compile flag for "-melf_i386", so specifying the target we are linking for. 
+
+
+
+so after linking it and offsetting our elf file, we want to copy out the text segment, using objcopy 
+
+                $ objcopy -O binary main.elf main.img
+
+objcopy is a tool under the GNU Binary Utilities.
+quoting this link:
+https://sourceware.org/binutils/docs/binutils/objcopy.html
+
+        "It can write the destination object file in a format different from that of the source object file"
+
+
+
+then we finally start qemu:
+                
+                -system-i386 -hda main.img -S -s 
+
+
+regarding the -hda compile flag, it means:
+
+                $ qemu-system-i386 -help | grep hda
+                -hda/-hdb file  use 'file' as IDE hard disk 0/1 image
+
+
+
+-   full procedure looks like: 
+
+                $ nasm -f elf32 -g3 -F dwarf main.asm -o main.o
+                $ ld -Ttext=0x7c00 -melf_i386 main.o -o main.elf
+                $ objcopy -O binary main.elf main.img
+                $ qemu-system-i386 -hda main.img -S -s 
+
+
+start another shell 
+
+                $ gdb main.elf 
+                (gdb) 'target remote localhost:1234' 
+                (gdb) 'set architecture i8086' 
+                (gdb) 'layout src' 
+                (gdb) 'layout regs' 
+                (gdb) 'break main' 
+                (gdb) 'continue'
+
+
+then you can start calling "stepi" to step through it
 
 
