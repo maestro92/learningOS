@@ -232,6 +232,10 @@ as you can see, the VGA Text memory resides between 736 kb and 752 kb
                 |                   |
                 |                   |
                 |                   |
+                |                   |               
+                |                   |
+                |                   |
+                |                   |
                 |                   |
                 |                   |
                 |                   |

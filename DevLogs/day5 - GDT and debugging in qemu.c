@@ -268,12 +268,22 @@ after we switched, we need to tell our code to be in 32 bit and we do a bunch of
                    call start_protected_mode        
 
 
+                [bits 32]
+                start_protected_mode:
 
-
+                    mov ebx, MSG_PROTECTED_MODE
+                    call print_string_pm
+                    jmp $
 
 
 we use the [bits 32] directive to tell our assembler that from that point onwards, 
 it should encode in 32-bit mode instructions. 
+
+and then we start calling print_string_pm. 
+
+Then you should be able to see "Loaded 32-bit protected mode" on the top left corner. 
+If its too hard to see, you can change the color in the "print_string_pm" function.
+in print_string_pm, we are doing WHITE_ON_BLACK. Consdier changing to some other color. 
 
 
 #######################################################################
@@ -388,7 +398,7 @@ so if you look at what does "-Ttext" does
                   -Ttext-segment ADDRESS      Set address of text segment
 
 
-essentially we are offseting the text segment, which will do equivalently what [org 0x7c00] does. 
+essentially we are offseting the "text segment", which will do equivalently what [org 0x7c00] does. 
 
 the compile flag for "-melf_i386", so specifying the target we are linking for. 
 

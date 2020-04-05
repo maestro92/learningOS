@@ -3,20 +3,7 @@
     mov [BOOT_DRIVE], dl    ;   when we boot, BIOS stores the boot dirve in the dl register
                             ;   we want to extract that number and put it into [BOOT_DRIVE]
 
-    mov bx, HELLO 
-    call print 
-    call print_nl 
-
-    mov bx, GOODBYE 
-    call print 
-    call print_nl
-
-    mov dx, 0x12fe
-    call print_hex
-    call print_nl
-
-
-    mov bp, 0x8000          ; set the stack safely away from us
+    mov bp, 0x9000          ; set the stack safely away from us
     mov sp, bp
 
     mov bx, 0x9000          ; es:bx = 0x0000:0x9000 = 0x09000
@@ -33,9 +20,11 @@
     mov dx, [0x9000 + 512]  ; first word from second loaded sector, 0xface
     call print_hex
 
-    jmp $
+    jmp $   ;   this actually never gets executed 
 
-%include "print_string.asm"
+
+
+%include "real_mode_print_string.asm"
 %include "disk_load.asm"
 
 ; data 
