@@ -33,7 +33,7 @@ load_kernel:
     call print 
 
     mov bx, KERNEL_OFFSET
-    mov dh, 15
+    mov dh, 1
     mov dl, [BOOT_DRIVE]    ;   drive number (0=A:, 1=2nd floppy, 80h=drive 0, 81h=drive 1)
     call disk_load
     
@@ -56,8 +56,6 @@ BOOT_DRIVE   db 0
 MSG_REAL_MODE  db "Started in 16-bit real mode", 0
 MSG_PROTECTED_MODE  db "Loaded 32-bit protected mode", 0
 MSG_LOAD_KERNEL  db "Loading kernel into memory.", 0
-
-
 
 ; Magic number
 times 510 - ($-$$) db 0
