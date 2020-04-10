@@ -174,3 +174,146 @@ and the drivers folder that we just created
         /boot 
         /drivers
         /kernel
+
+
+
+So this in terms of messing with the VGA registers, this is where we have to look at the specs. 
+
+The full offical specs on vga register from intel is here
+https://01.org/sites/default/files/documentation/ilk_ihd_os_vol3_part1r2_0.pdf
+
+chapter 2.6:
+        
+        "The CRT controller registers are accessed by writing the index of the desired register into the CRT Controller
+        Index Register at I/O address 3B4h or 3D4h, depending on whether the graphics system is configured for
+        MDA or CGA emulation. The desired register is then accessed through the data port for the CRT controller
+        registers located at I/O address 3B5h or 3D5h, again depending upon the choice of MDA or CGA emulation as
+        per MSR[0]. For memory mapped accesses, the Index register is at 3B4h (MDA mode) or 3D3h (CGA mode)
+        and the data port is accessed at 3B5h (MDA mode) or 3D5h (CGA mode)."
+
+Essentially, the Control Index register is at 3B4h (MDA mode) or 3D4h (CGA mode)
+and the data port is accessed at 3B5h (MDA mode) or 3D5h (CGA mode). I believe the "3D3h (CGA mode)" is a typo?
+
+MDA is the monochrome mode, CGA is color mode
+
+
+also note what it says
+
+        "The CRT controller registers are accessed by writing the index of the desired register into the CRT Controller
+        Index Register at I/O address 3B4h or 3D4h,
+
+        The desired register is then accessed through the data port for the CRT controller
+        registers located at I/O address 3B5h or 3D5h
+        "
+
+[if you scroll down in the intel spec, you can see a list of detailed description of what each register does].
+
+the idea is that you have to write to the Control register first, then access the register you want through the data port.
+We will see what that means in the code below:
+
+So lets take the example of the 
+taking the example of the "get_cursor()" function in the os-dev.pdf 
+
+                int get_cursor()
+                {
+                    port_byte_out ( REG_SCREEN_CTRL , 14);
+                    int offset = port_byte_in ( REG_SCREEN_DATA ) << 8;
+                    port_byte_out ( REG_SCREEN_CTRL , 15);
+                    offset += port_byte_in ( REG_SCREEN_DATA );
+                    // Since the cursor offset reported by the VGA hardware is the
+                    // number of characters , we multiply by two to convert it to
+                    // a character cell
+
+                    return offset * 2;
+                }
+
+here 
+REG_SCREEN_CTRL is 0x3D4
+REG_SCREEN_DATA is 0x3D5
+
+14 in hex is 0xE
+15 in hex is 0xF
+
+so effectively its doing 
+
+                int get_cursor()
+                {
+                    port_byte_out ( 0x3D4 , 0xE);
+                    int offset = port_byte_in ( 0x3D5 ) << 8;
+                    port_byte_out ( 0x3D4 , 0xF);
+                    offset += port_byte_in ( 0x3D5 );
+                    // Since the cursor offset reported by the VGA hardware is the
+                    // number of characters , we multiply by two to convert it to
+                    // a character cell
+
+                    return offset * 2;
+                }
+
+
+
+if you look at page 64 of the intel spec I linked above, it says 
+
+        2.6.16 CR0E ⎯Text Cursor Location High Register
+        I/O (and Memory Offset) Address: 3B5h/3D5h (index=0Eh)
+        Default: Undefined
+        Attributes: Read/Write 
+
+        Text Cursor Location Bits [15:8]. This field provides the 8 most significant bits of a 16-bit value that
+        specifies the address offset from the beginning of the frame buffer at which the text cursor is located. Bit
+        7:0 of the Text Cursor Location Low Register (CR0F) provide the 8 least significant bits.
+
+
+
+and then 
+
+        2.6.17 CR0F ⎯Text Cursor Location Low Register
+        I/O (and Memory Offset) Address: 3B5h/3D5h (index=0Fh)
+        Default: Undefined
+        Attributes: Read/Write
+
+        7:0 Text Cursor Location Bits [7:0]. This field provides the 8 least significant bits of a 16-bit value that
+        specifies the address offset from the beginning of the frame buffer at which the text cursor is located. Bits
+        7:0 of the Text Cursor Location High Register (CR0D) provide the 8 most significant bits.
+
+so these two registers tells you the 16-bit value that specifies the address offset of the text cursor.
+so the first register, we push it up 8 bits, and then add it with the lower 8 bits which we read from the 2nd register.
+
+but before we access these two register, we have to write to the control register first with the index 
+
+
+                int get_cursor()
+                {
+    ----------->    port_byte_out ( 0x3D4 , 0xE);
+                    int offset = port_byte_in ( 0x3D5 ) << 8;
+    ----------->    port_byte_out ( 0x3D4 , 0xF);
+                    offset += port_byte_in ( 0x3D5 );
+                    // Since the cursor offset reported by the VGA hardware is the
+                    // number of characters , we multiply by two to convert it to
+                    // a character cell
+
+                    return offset * 2;
+                }
+
+hence these 4 lines.
+
+
+
+
+
+
+
+
+
+https://wiki.osdev.org/Text_Mode_Cursor#Get_Cursor_Position
+https://wiki.osdev.org/VGA_Hardware
+
+
+        "The VGA has over 300 internal registers, , "
+
+
+
+
+
+
+we also create a utility function. It contains reading and writing bytes and words from a port.
+Since these will be used by most device drivers, we put them in a utility file. 

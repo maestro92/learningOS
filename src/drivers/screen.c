@@ -1,3 +1,6 @@
+
+#include "driver_util.c"
+
 #define VIDEO_ADDRESS 0xb8000
 #define MAX_ROWS 25
 #define MAX_COLS 80
@@ -10,9 +13,21 @@
 #define REG_SCREEN_DATA 0x3D5
 
 
-void get_screen_offset()
+// col is x, row is y
+void get_screen_offset(int col, int row)
 {
-    
+    return 2 * (row * MAX_COLS + col);
+}
+
+
+void set_cursor(int offset)
+{
+
+}
+
+int get_cursor()
+{
+
 }
 
 
@@ -39,7 +54,11 @@ void print_char(char character, int col, int row, char attribute_byte)
     if(character == '\n')
     {
         int rows = offset / (2 * MAX_COLS);
-        offset = gree_screen_offset(79, rows);
+
+        // if its a new line character, we set the offset to the end of the current row,
+        // so it will be advanced to the first col of the next row when we do offset+=2 at the 
+        // end of this iteration.
+        offset = gree_screen_offset(MAX_COLS-1, rows);
     }
     else
     {
@@ -53,5 +72,4 @@ void print_char(char character, int col, int row, char attribute_byte)
     offset = handle_scrolling(offset);
 
     set_cursor(offset);
-    
 }
