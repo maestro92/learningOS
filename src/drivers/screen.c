@@ -1,4 +1,5 @@
 #include "driver_util.c"
+#include "../kernel/util.c"
 
 #define VIDEO_ADDRESS 0xb8000
 #define MAX_ROWS 25
@@ -22,12 +23,12 @@ int get_screen_index(int col, int row)
 
 int get_index_row(int index)
 {
-    return index % MAX_COLS;
+    return index / MAX_COLS;
 }
 
 int get_index_col(int index)
 {
-    return index / MAX_COLS;
+    return index % MAX_COLS;
 }
 
 int set_cursor_index(int index)
@@ -55,6 +56,44 @@ int is_valid_coord(int col, int row)
     return col >=0 && col < MAX_COLS && row >= 0 && row < MAX_ROWS;
 }
 
+int is_valid_index(int index)
+{
+    return 0 <= index && index < (MAX_COLS * MAX_ROWS) - 1;
+}
+
+void handle_scrolling(int* index)
+{
+
+    int cur_index = *index;
+
+    if(is_valid_index(cur_index))
+    {
+        // we r good
+    }
+    else
+    {
+        unsigned char* video_memory = (unsigned char*) VIDEO_ADDRESS;
+        // move everything up a row 
+        int src_index = MAX_COLS;
+        int dst_index = 0;
+        unsigned char* src = &(video_memory[src_index * 2]);
+        unsigned char* dst = &(video_memory[dst_index * 2]);
+
+        memory_copy(src, dst, (MAX_ROWS - 1) * MAX_COLS * 2);
+
+
+        // clear last row 
+        int i=0;
+        for(i<0; i<MAX_COLS; i++)
+        {
+            int index = get_screen_index(i, MAX_ROWS - 1);
+            video_memory[index * 2] = ' ';
+            video_memory[index * 2 + 1] = WHITE_ON_BLACK;   
+        }
+        *index = get_screen_index(0, MAX_ROWS-1);
+    }
+}
+
 // assume col and row is valid
 void print_char(char character, int col, int row, char attribute_byte)
 {
@@ -63,6 +102,11 @@ void print_char(char character, int col, int row, char attribute_byte)
     if(!attribute_byte)
     {
         attribute_byte = MAGENTA_ON_BLACK;
+    }
+
+    if(character == ':')
+    {
+        int a = 1;
     }
 
     int index = 0;
@@ -94,7 +138,7 @@ void print_char(char character, int col, int row, char attribute_byte)
 
     index++;
 
-//    offset = handle_scrolling(offset);
+    handle_scrolling(&index);
 
     set_cursor_index(index);
 }
@@ -124,3 +168,17 @@ void kprint(char* string)
 }
 
 
+void clear_screen()
+{
+    int r = 0;
+    int c = 0;
+
+    for(int r = 0; r < MAX_ROWS; r++)
+    {
+        for(int c = 0; c < MAX_COLS; c++)
+        {
+            print_char(' ', c, r, WHITE_ON_BLACK);
+        }
+    }
+    set_cursor_index(get_screen_index(0, 0));
+}

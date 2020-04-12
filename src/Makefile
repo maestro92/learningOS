@@ -21,8 +21,13 @@ all:
 run:
 	qemu-system-i386 -hda build/martinos.img
 
-run_debug:
-	qemu-system-i386 -hda build/martinos.img -s -S
+run_debug_boot:
+	qemu-system-i386 -hda build/martinos.img -s -S & 
+	gdb -x gdb_boot
+
+run_debug_kernel:
+	qemu-system-i386 -hda build/martinos.img -s -S & 
+	gdb -x gdb_kernel
 
 debug_boot:
 	gdb -x gdb_boot

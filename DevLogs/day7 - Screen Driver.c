@@ -571,10 +571,28 @@ then we concatenate all the files together.
                                                             |
 
 
+################################################################
+########################## Clear screen ########################
+################################################################
 
+So we can also add a clear screen function. We just print ' ' to every index
+                
+                screen.c 
 
+                void clear_screen()
+                {
+                    int r = 0;
+                    int c = 0;
 
-
+                    for(int r = 0; r < MAX_ROWS; r++)
+                    {
+                        for(int c = 0; c < MAX_COLS; c++)
+                        {
+                            print_char(' ', c, r, WHITE_ON_BLACK);
+                        }
+                    }
+                    set_cursor_index(get_screen_index(0, 0));
+                }
 
 
 
@@ -586,18 +604,18 @@ then we concatenate all the files together.
 now we want to handle the case where when we print to the bottom of our screen, we need to scroll our screen.
 so we add a handle scroling function
 
+TO do this, we must move each character cell upwards by one row, and then clear the last row. we are gonna accomplish this 
+by just copying all the bytes. We will make a general purpose memory_copy() function in the kernel/util.c, since we will be using 
+memory_copy(); in the future. 
 
 
+                kernel/util.c 
 
-
-
-
-        "The VGA has over 300 internal registers, , "
-
-
-
-
-
-
-we also create a utility function. It contains reading and writing bytes and words from a port.
-Since these will be used by most device drivers, we put them in a utility file. 
+                void memory_copy(char* src, char* dst, int numBytes)
+                {
+                    int i = 0;
+                    for(int i=0; i<numBytes; i++)
+                    {
+                        *(dst + i) = *(src + i);
+                    }
+                }                
