@@ -214,6 +214,8 @@ We will see what that means in the code below:
 So lets take the example of the 
 taking the example of the "get_cursor()" function in the os-dev.pdf 
 
+we will look at how port_byte_out(); and port_byte_in() works later. Now just pretend that these two functions read and write to a port
+
                 int get_cursor()
                 {
                     port_byte_out ( REG_SCREEN_CTRL , 14);
@@ -297,15 +299,243 @@ but before we access these two register, we have to write to the control registe
 hence these 4 lines.
 
 
-
-
-
-
-
-
+more relevant links can be found here 
 
 https://wiki.osdev.org/Text_Mode_Cursor#Get_Cursor_Position
 https://wiki.osdev.org/VGA_Hardware
+
+
+so for the set_cursor(); its similar. Instead of reading the data, we are writing the data to the registers 
+
+
+                int set_cursor(int offset)
+                {
+                    offset /= 2;
+                    port_byte_out ( 0x3D4 , 0xE);
+                    port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset >> 8));
+                    port_byte_out ( 0x3D4 , 0xF);
+                    port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset & 0xff));
+                }
+
+
+
+
+Now we get the gist of programming VGA registers, now lets look at our device driver code. 
+
+so essentially we are trying to write a print function. So our main function is:
+                
+                screen.c
+
+                int print_char(char c, int col, int row, char attr) 
+                {                
+                    unsigned char* video_memory = (unsigned char*) VIDEO_ADDRESS;
+
+                    if(!attribute_byte)
+                    {
+                        attribute_byte = WHITE_ON_BLACK;
+                    }
+
+                    int offset;
+
+                    if (col >=0 && row >= 0)
+                    {
+                        offset = get_screen_offset(col, row);
+                    }
+                    else 
+                    {
+                        offset = get_cursor();
+                    }
+
+                    if(character == '\n')
+                    {
+                        int rows = offset / (2 * MAX_COLS);
+
+                        // if its a new line character, we set the offset to the end of the current row,
+                        // so it will be advanced to the first col of the next row when we do offset+=2 at the 
+                        // end of this iteration.
+                        offset = gree_screen_offset(MAX_COLS-1, rows);
+                    }
+                    else
+                    {
+                        video_memory[offset] = character;
+                        video_memory[offset+1] = attribute_byte;
+                    }
+
+
+                    offset += 2;
+
+                    set_cursor(offset);
+                }
+
+
+obviously, if we want to print a string, we just do a for loop calling print_char
+
+                
+                screen.c 
+
+                void print_at(char* string, int col, int row)
+                {
+                    int offset; 
+
+                    if(is_valid_coord(col, row))
+                    {
+                        offset = get_screen_offset(col, row);
+                        set_cursor(offset);
+                    }
+                    else
+                    {
+                        offset = get_cursor();
+                        row = get_offset_row(offset);
+                        col = get_offset_col(offset);
+                    }
+
+                    int i = 0;
+                    while(string[i] != '\0')
+                    {
+                        print_char(string[i], col, row, WHITE_ON_BLACK);
+                        i++;
+                    }
+                }
+
+
+
+Everything should be pretty straight forward
+
+
+
+####################################################################################
+###################### port_byte_out(); and port_byte_in(); ########################
+####################################################################################
+
+Now lets take a look at how these functions work 
+
+                unsigned char port_byte_in(unsigned short port)
+                {
+                    unsigned char result;
+                    __asm__("in %%dx, %%al" : "=a" (result) : "d" (port));
+                    return result;
+                }
+                
+                void port_byte_in(unsigned short port, unsigned char data)
+                {
+                    __asm__ ("out %% al , %% dx " : " a" ( data ), "d" ( port ));
+                }
+
+so a few things:
+
+__asm__ is inline assembly in C code. The __asm__ keyword allows you to embed assembler instruction within C code. 
+
+
+        "GCC provides two forms of inline asm statements. A basic asm statement is one with no operands, 
+        while an extended asm statement includes one or more operands."
+
+So there is basic assembly which is like 
+                
+                __asm__( your assembly instruction )
+
+for example:
+                __asm__("int $3")
+https://gcc.gnu.org/onlinedocs/gcc/Basic-Asm.html#Basic-Asm
+
+
+
+and there is extended assembly instruction, which looks like
+                
+                __asm__(  AssemblerTemplate : OutputOperands  )
+                
+
+https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+
+
+
+
+So the code here written in the port_byte_in(); and port_byte_out(); function are all extended assembly instructions 
+Lets so now lets take a closer look:
+
+                "in %%dx, %%al" : "=a" (result) : "d" (port)
+                "out %%al , %% dx" :" a" ( data ), "d" ( port )
+
+this is essentially calling the "in" and "out" assembly instructions. 
+https://c9x.me/x86/html/file_module_x86_id_139.html
+https://c9x.me/x86/html/file_module_x86_id_222.html
+
+you can see the comments says
+
+        "Input byte from I/O port in DX into AL."
+
+
+-   "in %%dx, %%al"
+% is used to denote registers, so if you want your assembly instruction to actually be 
+
+                in %dx, $al
+
+you actually need:
+                
+                "in %%dx, %%al"
+
+The GCC specs says 
+https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+
+        "
+        ‘%%’
+        Outputs a single ‘%’ into the assembler code.
+        "
+
+and I guess thats why you do this.
+
+
+With extended asm you can read and write C variables from assembler and perform jumps from assembler code to C 
+labels. Extended asm syntax uses colons (':') to delimit the operand parameters after the asembler template. 
+https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html#InputOperands
+https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html#OutputOperands
+
+so in an asm statement, you can attach zero or more output operands indicating the names of the C variables 
+modified by the assembler code. 
+
+
+each oeprand has the format of 
+                
+                [ [asmSymbolicName] ] constraint (cvariablename)
+
+the "constraints" essentially describes constraints on the cvariablename.
+
+-   "=a" (result)
+"=a" is the contraint. Output constarints must begin with either '='
+'a' stands for types of "address register"
+result is the cvariablename
+https://gcc.gnu.org/onlinedocs/gcc/Simple-Constraints.html#Simple-Constraints
+
+so what we are doing is putting AL register in variable RESULT when finished
+
+
+-   "d" (port)
+'d' stands for type of "data register"
+
+port is the cvariablename
+https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html
+
+load EDX with port
+
+
+
+
+
+
+
+
+
+
+################################################################
+###################### Handle Scrolling ########################
+################################################################
+
+now we want to handle the case where when we print to the bottom of our screen, we need to scroll our screen.
+so we add a handle scroling function
+
+
+
+
+
 
 
         "The VGA has over 300 internal registers, , "

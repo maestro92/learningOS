@@ -489,7 +489,7 @@ so here we declared main as an external symbol, and that will be referring to th
 so now when we compile we have to add this in and link it with our kernel.c
 
 
-                compile_martin_os.sh
+                build.sh
 
                 # compiling the bootsector code
                 nasm -f elf32 -g3 -F dwarf 32bit-main.asm -o build/bootsect.o
@@ -500,11 +500,122 @@ so now when we compile we have to add this in and link it with our kernel.c
                 nasm -f elf32 -g3 -F dwarf kernel_entry.asm -o build/kernel_entry.o
 
                 # compiling the kernel
-                i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -c kernel.c -o build/kernel.o
+                i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -c kernel.c -o build/kernel.o                
                 ld -Ttext=0x1000 --oformat binary -melf_i386 build/kernel.o build/kernel_entry.o -o build/kernel.img 
 
                 # build the os-image
                 cat build/bootsect.img build/kernel.img > build/martinos.img
 
 
-and there you have it :)
+
+
+
+
+So now if you look at it we can debug the kernel.elf or the bootsector.elf.
+so if you want to debug the kernel, you have to make an elf for for that. So it would look like:
+
+
+                build.sh
+
+                # compiling the bootsector code
+                nasm -f elf32 -g3 -F dwarf 32bit-main.asm -o build/bootsect.o
+                ld -Ttext=0x7c00 -melf_i386 build/bootsect.o -o build/bootsect.elf
+                objcopy -O binary build/bootsect.elf build/bootsect.img
+
+                # compiling the kernel_entry code
+                nasm -f elf32 -g3 -F dwarf kernel_entry.asm -o build/kernel_entry.o
+
+                # compiling the kernel
+                i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -c -g3 kernel.c -o build/kernel.o      <------------          
+                ld -Ttext=0x1000 -melf_i386 build/kernel.o build/kernel_entry.o -o build/kernel.elf     <------------
+                objcopy -O binary build/kernel.elf build/kernel.img
+
+                # build the os-image
+                cat build/bootsect.img build/kernel.img > build/martinos.img
+
+
+
+now if we want to debug the kernel, you have to compile in -g mode when you compile kernel.c
+and just load in the kernel.elf file when you run gdb
+
+
+                $ gdb build/kernel.elf
+                (gdb) 'target remote localhost:1234' 
+                (gdb) 'set architecture i8086' 
+                (gdb) 'layout src' 
+                (gdb) 'layout regs' 
+                (gdb) 'break main' 
+                (gdb) 'continue'
+
+
+
+
+
+#####################################################################
+########################### Makefile ################################
+#####################################################################
+
+so if you are even mroe tired of typing, I made a makefile that automates everything 
+
+                all:
+                    # compiling the bootsector code
+                    nasm -f elf32 -g3 -F dwarf boot/32bit-main.asm -o build/bootsect.o
+                    ld -Ttext=0x7c00 -melf_i386 build/bootsect.o -o build/bootsect.elf
+                    objcopy -O binary build/bootsect.elf build/bootsect.img
+
+                    # compiling the kernel_entry code
+                    nasm -f elf32 -g3 -F dwarf boot/kernel_entry.asm -o build/kernel_entry.o
+
+                    # compiling the kernel
+                    i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -g -c kernel/kernel.c -o build/kernel.o                
+                    ld -Ttext=0x1000 -melf_i386 build/kernel.o build/kernel_entry.o -o build/kernel.elf 
+                    objcopy -O binary build/kernel.elf build/kernel.img
+
+                    # build the os-image
+                    cat build/bootsect.img build/kernel.img > build/martinos.img
+
+                run:
+                    qemu-system-i386 -hda build/martinos.img
+
+                run_debug:
+                    qemu-system-i386 -hda build/martinos.img -s -S
+
+                debug_boot:
+                    gdb -x gdb_boot
+
+                debug_kernel:
+                    gdb -x gdb_kernel
+
+                clean:
+                    rm -rf build/*.elf build/*.img build/*.o                                                                               
+*/
+
+
+so if you want to compile your script just run make, since make runs the first target. or you can specify make all 
+
+when you want to emulate, just run make run 
+
+to debug, run the "make debug_kernel"
+
+notice the command is: "gdb -x gdb_boot"
+
+what is happening here is that notice that once you start a gdb session, you have to run a shit ton of commands inside gdb, 
+apparently you can save a bunch of commands a separate file, and gdb -x allows you to run all these commands in a file. 
+so I actually have a separate file called gdb_boot and gdb_kernel that looks like below:
+                
+                gdb_boot 
+
+                target remote localhost:1234
+                symbol-file build/bootsect.elf
+
+and 
+
+                gdb_kernel
+
+                target remote localhost:1234
+                symbol-file build/kernel.elf
+
+for more info you can see the following stackoverflow link 
+https://stackoverflow.com/questions/14226563/how-to-read-and-execute-gdb-commands-from-a-file
+
+

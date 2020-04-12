@@ -21,11 +21,11 @@ boot_sector_start:
     jmp $   ;   this actually never gets executed 
 
 
-%include "real_mode_print_string.asm"
-%include "disk_load.asm"
-%include "32bit-gdt.asm"
-%include "32bit-print.asm"
-%include "32bit-switch.asm"
+%include "boot/real_mode_print_string.asm"
+%include "boot/disk_load.asm"
+%include "boot/32bit-gdt.asm"
+%include "boot/32bit-print.asm"
+%include "boot/32bit-switch.asm"
 
 [bits 16]
 load_kernel:

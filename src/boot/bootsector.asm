@@ -24,8 +24,8 @@
 
 
 
-%include "real_mode_print_string.asm"
-%include "disk_load.asm"
+%include "boot/real_mode_print_string.asm"
+%include "boot/disk_load.asm"
 
 ; data 
 HELLO:
