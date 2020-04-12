@@ -1,0 +1,9 @@
+times 256 dw 0 ; sector 2 = 512 bytes
+times 256 dw 0 ; sector 3 = 512 bytes
+times 256 dw 0 ; sector 4 = 512 bytes
+times 256 dw 0 ; sector 5 = 512 bytes
+times 256 dw 0 ; sector 6 = 512 bytes
+times 256 dw 0 ; sector 7 = 512 bytes
+times 256 dw 0 ; sector 8 = 512 bytes
+times 256 dw 0 ; sector 9 = 512 bytes
+times 256 dw 0 ; sector 10 = 512 bytes

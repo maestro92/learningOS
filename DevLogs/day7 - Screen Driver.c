@@ -522,6 +522,60 @@ load EDX with port
 
 
 
+################################################################
+################ Disk Load Sections ############################
+################################################################
+since adding our VGA device driver code, the size of our kernel has increased. which means we need to accommodate how much
+sections to load from our hard drive. Recall in our bootsector code, we did this: 
+
+                [bits 16]
+                load_kernel:
+                    mov bx, MSG_LOAD_KERNEL
+                    call print 
+
+                    mov bx, KERNEL_OFFSET
+    ----------->    mov dh, 1
+                    mov dl, [BOOT_DRIVE]    ;   drive number (0=A:, 1=2nd floppy, 80h=drive 0, 81h=drive 1)
+                    call disk_load
+                    
+                    ret 
+
+
+what I plan to do is to change the number to 10, and I will artificially create 10 * 512 bytes of 0s and concatenate it to our 
+hard drive imge file. So our os-image.bin will be done through this:
+
+
+                padding.asm 
+
+                times 256 dw 0 ; sector 2 = 512 bytes
+                times 256 dw 0 ; sector 3 = 512 bytes
+                times 256 dw 0 ; sector 4 = 512 bytes
+                times 256 dw 0 ; sector 5 = 512 bytes
+                times 256 dw 0 ; sector 6 = 512 bytes
+                times 256 dw 0 ; sector 7 = 512 bytes
+                times 256 dw 0 ; sector 8 = 512 bytes
+                times 256 dw 0 ; sector 9 = 512 bytes
+                times 256 dw 0 ; sector 10 = 512 bytes
+
+
+
+we compile it 
+                nasm -f bin boot/padding.asm -o build/padding.img
+
+
+then we concatenate all the files together. 
+
+                cat build/bootsect.img build/kernel.img build/padding.img > build/martinos.img
+                                                            ^
+                                                            |
+                                                            |
+
+
+
+
+
+
+
 
 
 

@@ -33,7 +33,7 @@ load_kernel:
     call print 
 
     mov bx, KERNEL_OFFSET
-    mov dh, 1
+    mov dh, 10
     mov dl, [BOOT_DRIVE]    ;   drive number (0=A:, 1=2nd floppy, 80h=drive 0, 81h=drive 1)
     call disk_load
     

@@ -486,6 +486,56 @@ accordingly to the official nasm specs, it says:
 
 so here we declared main as an external symbol, and that will be referring to the kernel_main function in our kernel.c file
 
+Update:
+supposedly this extern trick is supposed to work, but I couldnt get it to work. So thing I did is that 
+I have to ensure the kernel_main is the first function of my kernel.c file. So I have the following setup. 
+
+                kernel_entry.asm 
+
+                [bits 32]
+                [extern _start] ; Define calling point. Must have same name as kernel.c 'main' function
+                call _start ; Calls the C function. The linker will know where it is placed in memory
+                jmp $
+
+
+and our kernel.c file looks like: 
+
+                kernel.c
+
+                int kernel_main();
+
+                int _start()
+                {
+                   kernel_main();
+                }
+
+                #include "../drivers/screen.c"
+
+                int kernel_main()
+                {
+                   unsigned char* vga = (unsigned char*) 0xb8000;
+                   
+                   unsigned char* name = "Martin OS22";
+                   char* cur = name;
+                   int index = 0;
+                   while (*cur != '\0')
+                   {
+                      vga[index] = *cur;
+                      vga[index+1] = 0x09;
+
+                      cur++;
+                      index += 2;
+                   }
+                }
+
+
+this apparently works fine.
+
+##############################################################################################
+################################# Debugging the kernel #######################################
+##############################################################################################
+
+
 so now when we compile we have to add this in and link it with our kernel.c
 
 

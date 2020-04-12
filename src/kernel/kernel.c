@@ -1,18 +1,19 @@
-// #include "../drivers/screen.c"
 
 int kernel_main();
+
 
 int _start()
 {
    kernel_main();
 }
 
+#include "../drivers/screen.c"
 
 int kernel_main()
 {
    unsigned char* vga = (unsigned char*) 0xb8000;
    
-   unsigned char* name = "Martin OS";
+   unsigned char* name = "Martin ";
    char* cur = name;
    int index = 0;
    while (*cur != '\0')
@@ -24,7 +25,8 @@ int kernel_main()
       index += 2;
    }
 
-  // print("Martin OS 2");
+   set_cursor_index(0);
+   kprint("Martin OS 2");
    for(;;);
 
    /*

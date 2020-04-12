@@ -6,6 +6,8 @@
 
 // Attribute byte for our default colour scheme 
 #define WHITE_ON_BLACK 0x0f
+#define BLUE_ON_BLACK 0x09
+#define MAGENTA_ON_BLACK 0x05
 
 // Screen device I/O ports 
 #define REG_SCREEN_CTRL 0x3D4 
@@ -13,40 +15,39 @@
 
 
 // col is x, row is y
-int get_screen_offset(int col, int row)
+int get_screen_index(int col, int row)
 {
-    return 2 * (row * MAX_COLS + col);
+    return row * MAX_COLS + col;
 }
 
-int get_offset_row(int offset)
+int get_index_row(int index)
 {
-    return offset % MAX_COLS;
+    return index % MAX_COLS;
 }
 
-int get_offset_col(int offset)
+int get_index_col(int index)
 {
-    return offset / MAX_COLS;
+    return index / MAX_COLS;
 }
 
-int set_cursor(int offset)
-{
-    offset /= 2;
-    port_byte_out ( 0x3D4 , 0xE);
-    port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset >> 8));
-    port_byte_out ( 0x3D4 , 0xF);
-    port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset & 0xff));
-}
-
-int get_cursor()
+int set_cursor_index(int index)
 {
     port_byte_out ( REG_SCREEN_CTRL , 0xE);
-    int offset = port_byte_in ( REG_SCREEN_DATA ) << 8;
+    port_byte_out(REG_SCREEN_DATA, (unsigned char)(index >> 8));
     port_byte_out ( REG_SCREEN_CTRL , 0xF);
-    offset += port_byte_in ( REG_SCREEN_DATA );
+    port_byte_out(REG_SCREEN_DATA, (unsigned char)(index & 0xff));
+}
+
+int get_cursor_index()
+{
+    port_byte_out ( REG_SCREEN_CTRL , 0xE);
+    int index = port_byte_in ( REG_SCREEN_DATA ) << 8;
+    port_byte_out ( REG_SCREEN_CTRL , 0xF);
+    index += port_byte_in ( REG_SCREEN_DATA );
     // Since the cursor offset reported by the VGA hardware is the
     // number of characters , we multiply by two to convert it to
     // a character cell
-    return offset * 2;
+    return index;
 }
 
 int is_valid_coord(int col, int row)
@@ -61,70 +62,63 @@ void print_char(char character, int col, int row, char attribute_byte)
 
     if(!attribute_byte)
     {
-        attribute_byte = WHITE_ON_BLACK;
+        attribute_byte = MAGENTA_ON_BLACK;
     }
 
-    int offset = get_screen_offset(col, row);
+    int index = 0;
 
-/*
     if (is_valid_coord(col, row))
     {
-        offset = get_screen_offset(col, row);
+        index = get_screen_index(col, row);
     }
     else 
     {
-        offset = get_cursor();
+        index = get_cursor_index();
     }
-*/
+
     if(character == '\n')
     {
-        int rows = offset / (2 * MAX_COLS);
+        int rows = get_index_row(index);
 
         // if its a new line character, we set the offset to the end of the current row,
         // so it will be advanced to the first col of the next row when we do offset+=2 at the 
         // end of this iteration.
-        offset = get_screen_offset(MAX_COLS-1, rows);
+        index = get_screen_index(MAX_COLS-1, rows);
     }
     else
     {
-        video_memory[offset] = character;
-        video_memory[offset+1] = attribute_byte;
+        video_memory[index * 2] = character;
+        video_memory[index * 2 + 1] = attribute_byte;
     }
 
 
-    offset += 2;
+    index++;
 
 //    offset = handle_scrolling(offset);
 
-    set_cursor(offset);
+    set_cursor_index(index);
 }
 
 void print_at(char* string, int col, int row)
 {
-    int offset; 
+    int index; 
 
     if(is_valid_coord(col, row))
     {
-        offset = get_screen_offset(col, row);
-        set_cursor(offset);
-    }
-    else
-    {
-        offset = get_cursor();
-        row = get_offset_row(offset);
-        col = get_offset_col(offset);
+        index = get_screen_index(col, row);
+        set_cursor_index(index);
     }
 
     int i = 0;
     while(string[i] != '\0')
     {
-        print_char(string[i], col, row, WHITE_ON_BLACK);
+        print_char(string[i], col, row, MAGENTA_ON_BLACK);
         i++;
     }
 }
 
 
-void print(char* string)
+void kprint(char* string)
 {
     print_at(string, -1, -1);
 }

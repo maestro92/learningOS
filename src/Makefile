@@ -4,6 +4,9 @@ all:
 	ld -Ttext=0x7c00 -melf_i386 build/bootsect.o -o build/bootsect.elf
 	objcopy -O binary build/bootsect.elf build/bootsect.img
 
+	# padding file
+	nasm -f bin boot/padding.asm -o build/padding.img
+
 	# compiling the kernel_entry code
 	nasm -f elf32 -g3 -F dwarf boot/kernel_entry.asm -o build/kernel_entry.o
 
@@ -13,7 +16,7 @@ all:
 	objcopy -O binary build/kernel.elf build/kernel.img
 
 	# build the os-image
-	cat build/bootsect.img build/kernel.img > build/martinos.img
+	cat build/bootsect.img build/kernel.img build/padding.img > build/martinos.img
 
 run:
 	qemu-system-i386 -hda build/martinos.img
