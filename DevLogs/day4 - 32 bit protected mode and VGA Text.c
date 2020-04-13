@@ -149,6 +149,15 @@ Since we lose all BIOS routines, we have to provide our own drivers for all hard
 screen, disk drivers, mouse, etc). 
 
 
+this links actually offers a ver good graph
+https://manybutfinite.com/post/how-computers-boot-up/
+
+
+
+
+
+
+
 ###############################################################################
 ########################## Printing In Protected Mode #########################
 ###############################################################################

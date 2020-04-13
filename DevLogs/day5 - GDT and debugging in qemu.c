@@ -2,11 +2,11 @@
 ####################### x86 memory segmentation ###############################
 ###############################################################################
 
+as mentioned in day 4, the intel 80286 introduced a 2nd version of segmentation in 1982 that added support for virtual memory and memory protection.
+And GDT is how they accomplished the memory protection. 
 
-So we already know that the GDT describes certain info about the parts of the memory 
-its also a way to protect certain parts of the memory 
-
-for example: 
+The GDT is a data structure, starting with the 80286 in order to define the characteristics of the various memory areas. 
+For example, 
 
 lets same this is our 4GB memory, 
 and in our GDT, we defined that code segment and data segment is below:
