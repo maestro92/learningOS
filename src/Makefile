@@ -10,9 +10,14 @@ all:
 	# compiling the kernel_entry code
 	nasm -f elf32 -g3 -F dwarf boot/kernel_entry.asm -o build/kernel_entry.o
 
+	# compiling the kernel_entry code
+	nasm -f elf32 -g3 -F dwarf kernel/idt.asm -o build/idt.o
+
 	# compiling the kernel
-	i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -g -c kernel/kernel.c -o build/kernel.o                
-	i686-elf-ld -Ttext=0x1000 -melf_i386 build/kernel.o build/kernel_entry.o -o build/kernel.elf 
+	i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -g -c -E kernel/kernel.c -o build/test_kernel.o    
+
+	i686-elf-gcc -m32 -ffreestanding -nostdlib -lgcc -g -c kernel/kernel.c -o build/kernel.o    
+	i686-elf-ld -Ttext=0x1000 -melf_i386 build/kernel.o build/kernel_entry.o build/idt.o -o build/kernel.elf 
 	objcopy -O binary build/kernel.elf build/kernel.img
 
 	# build the os-image

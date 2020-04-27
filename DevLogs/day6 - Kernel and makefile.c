@@ -478,10 +478,15 @@ so in the assembly code here, we are using extern
 accordingly to the official nasm specs, it says:
 
         "EXTERN is similar to the MASM directive EXTRN and the C keyword extern: 
-        EXTERN is similar to the MASM directive EXTRN and the C keyword extern: 
         it is used to declare a symbol which is not defined anywhere in the module being assembled, 
         but is assumed to be defined in some other module and needs to be referred to by this one. 
         Not every object-file format can support external variables: the bin format cannot."
+
+as a side note, there is also the "global" directive
+
+
+
+
 
 
 so here we declared main as an external symbol, and that will be referring to the kernel_main function in our kernel.c file

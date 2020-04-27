@@ -8,6 +8,7 @@ int _start()
 }
 
 #include "../drivers/screen.c"
+#include "idt.c"
 
 void test_print()
 {
@@ -49,12 +50,19 @@ void test_print()
    *cur = '\0';
 
    kprint(message);
+
+   initIDT();
 }
+
+
 
 
 int kernel_main()
 {
    test_print();
+
+   initIDT();
+
    for(;;);
 }
 
