@@ -21,13 +21,13 @@ and since that is how Intel says so, us as programmers need to setup interrupts 
 External events trigger an interrupt. These events can be trigged by hardware or software. 
 
 
-so imagine, your keyboard is connect to your motherboard, and it tells the CPU that it needs some attention when a key is pressed.
+so imagine, your keyboard is connected to your motherboard, and it tells the CPU that it needs some attention when a key is pressed.
 
                                      _______________
                                     |               |
      _______________                |               |
     |               |               |               |
-    |   keyboard    |---------------|   CPU         | 
+    |   keyboard    |-------------->|   CPU         | 
     |_______________|               |               |
                                     |               |
                                     |_______________|
@@ -240,6 +240,15 @@ visually this is where IVT resdies in memory
 a real mode pointer is defined as a 16-bit segment and a 16-bit offset into that segment. 
 
 
+so if you look at the Understanding Linux Kernel book,
+https://doc.lagout.org/operating%20system%20/linux/Understanding%20Linux%20Kernel.pdf
+Chapter 4, Preliminary Initialization of the IDT
+
+        The IDT is initialized and used by the BIOS routines while the computer still operates in Real Mode. 
+        Once Linux takes over, however, the IDT is moved to another
+        area of RAM and initialized a second time, because Linux does not use any BIOS routine
+
+
 -   Protected mode
 in protected mode, the IDT can reside anywhere in the linear address space.
 The location of IDT (address and size) is kept in the IDTR register of the CPU, which can be loaded/stored using LIDT, SIDT instructions. 
@@ -259,4 +268,27 @@ the table contains 8-byte Gates entries. Each entry has a complex structure.
                    uint8_t type_attr; // type and attributes, see below
                    uint16_t offset_2; // offset bits 16..31
                 };
+
+
+
+
+https://linux-kernel-labs.github.io/refs/heads/master/lectures/interrupts.html
+0 ~ 31
+first 32 entries are reserved for exceptions 
+
+
+32 ~ 127
+device interrupts
+
+
+
+-   Hardware Interrupts 
+
+Pic manages hardware interrupts.
+
+-   Software Interrupts 
+software interrupts are triggered by the "INT" instruction. 
+
+
+-   Exceptions 
 

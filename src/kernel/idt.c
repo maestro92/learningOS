@@ -27,8 +27,7 @@ idt_entry_type IDT[256];
 idt_descriptor_type idt_descriptor;
 
 
-
-extern void idt_load(unsigned int);
+extern void load_idt(unsigned int);
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -64,7 +63,7 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-
+extern void test_idt();
 
 void set_idt_gate(int n, unsigned int handler_address)
 {
@@ -73,6 +72,11 @@ void set_idt_gate(int n, unsigned int handler_address)
     IDT[n].zeros = 0;
     IDT[n].flags = 0x8E; 
     IDT[n].offset_upper = high_16(handler_address);
+}
+
+void test_interrupt()
+{
+    test_idt();
 }
 
 void initIDT()
@@ -113,7 +117,9 @@ void initIDT()
     set_idt_gate(30, (unsigned int)&isr30);
     set_idt_gate(31, (unsigned int)&isr31);
 
-    idt_load( (unsigned int)&idt_descriptor );
+    load_idt( (unsigned int)&idt_descriptor );
+
+    int b = 0;
 }
 
 
@@ -132,12 +138,163 @@ unsigned char *exception_messages[] =
 
 */
 
+void interrupt_handler_0()
+{
+    kprint("isr_handler0\n");
+}
 
-void isr_handler()
+void interrupt_handler_1()
+{
+    kprint("isr_handler1\n");
+}
+
+void interrupt_handler_2()
+{
+    kprint("isr_handler2\n");
+}
+
+void interrupt_handler_3()
+{
+    kprint("isr_handler3\n");
+}
+
+void interrupt_handler_4()
+{
+    kprint("isr_handler4\n");
+}
+
+void interrupt_handler_5()
+{
+    kprint("isr_handler5\n");
+}
+
+void interrupt_handler_6()
+{
+    kprint("isr_handler6\n");
+}
+
+void interrupt_handler_7()
+{
+    kprint("isr_handler7\n");
+}
+
+void interrupt_handler_8()
 {
     kprint("isr_handler\n");
 }
 
+void interrupt_handler_9()
+{
+    kprint("isr_handler\n");
+}
 
+void interrupt_handler_10()
+{
+    kprint("isr_handler\n");
+}
 
+void interrupt_handler_11()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_12()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_13()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_14()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_15()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_16()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_17()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_18()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_19()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_20()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_21()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_22()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_23()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_24()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_25()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_26()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_27()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_28()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_29()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_30()
+{
+    kprint("isr_handler\n");
+}
+
+void interrupt_handler_31()
+{
+    kprint("isr_handler\n");
+}
 #endif // IDT_C 

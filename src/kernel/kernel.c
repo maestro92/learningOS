@@ -2,7 +2,7 @@
 int kernel_main();
 
 
-int _start()
+int start()
 {
    kernel_main();
 }
@@ -15,6 +15,7 @@ void test_print()
    clear_screen();
    kprint("Martin OS 2\n");
 
+/*
    char message[2000];; 
    char* cur = message;
    int size = 0;
@@ -50,8 +51,7 @@ void test_print()
    *cur = '\0';
 
    kprint(message);
-
-   initIDT();
+   */
 }
 
 
@@ -62,6 +62,9 @@ int kernel_main()
    test_print();
 
    initIDT();
+   kprint("Init ID");
+
+   test_interrupt();
 
    for(;;);
 }
