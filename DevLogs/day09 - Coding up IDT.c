@@ -622,16 +622,63 @@ https://c9x.me/x86/html/file_module_x86_id_304.html
 
 
 
+##################################################################
+################# __attribute__((packed)) ######################## 
+##################################################################
 
 
+so onething I forgot to mention is that when we defined the structs for idt_entry 
+and idt_descriptor, we need to add the __attribute__((packed)), otherwise the c compiler will 
+add padding to your structs for data alignment. 
 
-INT 0x2
-0x0000e05b in ?? ()
+                struct idt_entry_struct {
+                    unsigned short offset_lower;
+                    unsigned short segment_selector;
+                    unsigned char zeros;
+                    unsigned char flags;
+                    unsigned short offset_upper;
+                } __attribute__((packed));
 
 
-INT 0x3
-0x0000e05b in ?? ()
+                struct idt_descriptor_struct{
+                    unsigned short limit; 
+                    unsigned int address;
+                } __attribute__((packed));
 
+
+there are actually different ways to tell the compiler to tightly pack your data 
+you can see the link here. 
+https://www.geeksforgeeks.org/how-to-avoid-structure-padding-in-c/
+
+
+you can do the __attribute__((packed)) way or the #pragma pack(1) way. This is what Casey did 
+on handmade hero. 
+
+so as a matter of fact, in my first run without the pack, when I call INT 0x2 to test our my IDT, isr2(); wasnt getting called. 
+
+and when I examined the memory of idt_descriptor with gdb, this is what I see 
+
+                (gdb) print idt_descriptor
+                $1 = {limit = 2047, address = 12992}
+
+so if you just call print idt_descriptor, it looks normal, where we have the limit and its address properly assigned.
+
+but when we actually examine its memory
+
+                (gdb) x/10b 0x3ac0
+                0x3ac0 <idt_descriptor>:        0xff    0x07    0x00    0x00    0xc0    0x32    0x00    0x00    0x00    0x00
+
+recall the structure of the idt_descriptor is a 
+
+                unsigned short limit; 
+                unsigned int address;
+
+you can see there is 2 byte padding after the "unsigned short limit"
+
+and after I added the __attribute__((packed)), INT 0x2 now calls into isr2(); which is beautiful.
+
+so the lesson here is anything that intel expects to be a tightly compact data structure, we need 
+to tightly pack it. 
 
 
 

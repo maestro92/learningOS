@@ -10,7 +10,8 @@ struct idt_entry_struct {
     unsigned char zeros;
     unsigned char flags;
     unsigned short offset_upper;
-};
+} __attribute__((packed));
+
 typedef struct idt_entry_struct idt_entry_type;
 
 
@@ -18,7 +19,8 @@ typedef struct idt_entry_struct idt_entry_type;
 struct idt_descriptor_struct{
     unsigned short limit; 
     unsigned int address;
-};
+} __attribute__((packed));
+
 typedef struct idt_descriptor_struct idt_descriptor_type;
 
 

@@ -10,7 +10,7 @@ all:
 	# compiling the kernel_entry code
 	nasm -f elf32 -g3 -F dwarf boot/kernel_entry.asm -o build/kernel_entry.o
 
-	# compiling the kernel_entry code
+	# compiling the idt.asm file
 	nasm -f elf32 -g3 -F dwarf kernel/idt.asm -o build/idt.o
 
 	# compiling the kernel
