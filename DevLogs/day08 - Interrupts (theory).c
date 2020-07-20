@@ -18,7 +18,12 @@ and do something else
 The thing you have to undestand is that x86 is a interrupt driven architecture. That is just how the intel guys designed it. 
 and since that is how Intel says so, us as programmers need to setup interrupts properly for our OS. 
 
+
+so there are two types of interrupts, hardware interrupts and software interrupts (soft irq);
+
+
 External events trigger an interrupt. These events can be trigged by hardware or software. 
+
 
 
 so imagine, your keyboard is connected to your motherboard, and it tells the CPU that it needs some attention when a key is pressed.

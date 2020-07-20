@@ -7,7 +7,11 @@ int start()
    kernel_main();
 }
 
+
+#include "util.c"
+#include "../drivers/driver_util.c"
 #include "../drivers/screen.c"
+#include "../drivers/keyboard.c"
 #include "idt.c"
 
 void test_print()
@@ -66,7 +70,17 @@ int kernel_main()
 
    test_interrupt();
 
-   for(;;);
+   kprint("back here");
+
+   asm volatile("sti");
+/*
+   for(;;) 
+   {
+      asm("hlt");
+   }
+   */
+//   for(;;);
+
 }
 
 

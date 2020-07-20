@@ -2,7 +2,6 @@
 #define IDT_C 
 
 
-
 // defining the idt entry
 struct idt_entry_struct {
     unsigned short offset_lower;
@@ -65,6 +64,13 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
+
+extern void irq0();
+extern void irq1();
+extern void irq2();
+extern void irq3();
+extern void irq4();
+
 extern void test_idt();
 
 void set_idt_gate(int n, unsigned int handler_address)
@@ -85,6 +91,19 @@ void initIDT()
 {
     idt_descriptor.limit = sizeof(idt_entry_type) * 256 - 1;
     idt_descriptor.address = (unsigned int)(&IDT);
+
+
+    // Remap the PIC
+    port_byte_out(0x20, 0x11);
+    port_byte_out(0xA0, 0x11);
+    port_byte_out(0x21, 0x20);
+    port_byte_out(0xA1, 0x28);
+    port_byte_out(0x21, 0x04);
+    port_byte_out(0xA1, 0x02);
+    port_byte_out(0x21, 0x01);
+    port_byte_out(0xA1, 0x01);
+    port_byte_out(0x21, 0x0);
+    port_byte_out(0xA1, 0x0);
 
     set_idt_gate(0, (unsigned int)&isr0);
     set_idt_gate(1, (unsigned int)&isr1);
@@ -119,7 +138,16 @@ void initIDT()
     set_idt_gate(30, (unsigned int)&isr30);
     set_idt_gate(31, (unsigned int)&isr31);
 
+
+    set_idt_gate(32, (unsigned int)&irq0);
+    set_idt_gate(33, (unsigned int)&irq1);
+    set_idt_gate(34, (unsigned int)&irq2);
+    set_idt_gate(35, (unsigned int)&irq3);
+    set_idt_gate(36, (unsigned int)&irq4);
+
     load_idt( (unsigned int)&idt_descriptor );
+
+    init_keyboard_driver();
 
     int b = 0;
 }
@@ -299,4 +327,34 @@ void interrupt_handler_31()
 {
     kprint("isr_handler\n");
 }
+
+
+void irq0_handler()
+{
+    port_byte_out(0x20, 0x20);
+}
+
+void irq1_handler()
+{
+    keyboard_handler();
+
+    port_byte_out(0x20, 0x20);
+}
+
+void irq2_handler()
+{
+    port_byte_out(0x20, 0x20);
+}
+
+void irq3_handler()
+{
+    port_byte_out(0x20, 0x20);
+}
+
+void irq4_handler()
+{
+    port_byte_out(0x20, 0x20);
+}
+
+
 #endif // IDT_C 

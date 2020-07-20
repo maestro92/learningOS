@@ -32,6 +32,14 @@ global isr29
 global isr30
 global isr31
 
+global irq0
+global irq1
+global irq2
+global irq3
+global irq4
+
+
+
 global load_idt
 global test_idt
 
@@ -67,6 +75,13 @@ extern interrupt_handler_28
 extern interrupt_handler_29
 extern interrupt_handler_30
 extern interrupt_handler_31
+
+extern irq0_handler
+extern irq1_handler
+extern irq2_handler
+extern irq3_handler
+extern irq4_handler
+
 
 isr0:                     
     pusha
@@ -291,6 +306,45 @@ isr31:
     call interrupt_handler_31 
     popa
     iret
+
+
+
+
+irq0:   ; isr32               
+    pusha
+    cld
+    call irq0_handler 
+    popa  
+    iret
+
+irq1:   ; isr33                 
+    pusha
+    cld    
+    call irq1_handler
+    popa
+    iret
+
+irq2:   ; isr34         
+    pusha
+    cld
+    call irq2_handler
+    popa 
+    iret
+
+irq3:   ; isr34                   
+    pusha
+    cld
+    call irq3_handler 
+    popa
+    iret
+
+irq4:   ; isr35                    
+    pusha
+    cld
+    call irq4_handler 
+    popa  
+    iret
+
 
 load_idt:
     mov eax, [esp + 4]

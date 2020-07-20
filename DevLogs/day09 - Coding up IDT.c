@@ -24,7 +24,7 @@ As you can see, we got a couple of things to do
 1st we will want to define our 8-byte descriptor for our IDT table.
 
 so now lets look at intel specs 6.11
-(https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
+https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
 
 
 The IDT may contain 3 kinds of descriptor 
@@ -41,7 +41,7 @@ you can think of it as
 
 
 according to this link:
-(http://littleosbook.github.io/#creating-an-entry-in-the-idt)
+http://littleosbook.github.io/#creating-an-entry-in-the-idt
 
 The task handlers (the 1st type); use functionality specific to the Intel version of x86,
 
@@ -586,6 +586,20 @@ so you can imagine that we will have 32 of those, so it can get a bit repetitive
                 ...
 
 
+
+##################################################################
+################################# Testing ######################## 
+##################################################################
+
+To test my IDT, we issue a software interrupt 
+
+                test_idt:
+                    INT 0x2
+                    ret;
+
+
+
+
 ##################################################################
 ################ Loading the IDT Register ######################## 
 ##################################################################
@@ -619,6 +633,7 @@ https://littleosbook.github.io/#loading-the-idt
 
 the specs for "sti" is, which says: 
 https://c9x.me/x86/html/file_module_x86_id_304.html
+
 
 
 
@@ -688,6 +703,20 @@ to tightly pack it.
 
 
 
+
+
+
+
+
+
+#####################################################################################
+######################## dont go below here #########################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
 
 
 
