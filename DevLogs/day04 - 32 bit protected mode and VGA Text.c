@@ -29,6 +29,8 @@ this new mode "protected mode" with protection features.
 Apparently the "protected mode" is also called virtual memory mode. In lay man_s terms, a virtual memory machine is just a machine 
 that maps a larger memory space (1G for the 80286) into a much smaller physical memory space (16M bytes for 80286). 
 
+the Intel 80286 is a 16-bit processor with a segment-based memory management and protection system.
+
 
 -   80386
 Then intel introduced 80386 in 1985. 80386 was like the 32-bit extension of the 80286 architecture. In Intel 80386 and later processors 

@@ -97,11 +97,17 @@ isr1:
     popa
     iret
 
-isr2:                     
+isr2:
+    push byte 0         ; fake error code                     
+    push byte 2              
     pusha
     cld
-    call interrupt_handler_2
+    mov eax, esp    
+    push eax                       
+    call interrupt_handler_2 
+    add esp, 4     
     popa
+    add esp, 8
     iret
 
 isr3:                    
@@ -182,10 +188,15 @@ isr13:
     iret
 
 isr14:                     
+    push byte 14                  
     pusha
     cld
-    call interrupt_handler_14 
+    mov eax, esp    
+    push eax                       
+    call interrupt_handler_14       
+    add esp, 4     
     popa
+    add esp, 8
     iret
 
 isr15:                    

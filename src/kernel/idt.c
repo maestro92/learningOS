@@ -73,6 +73,16 @@ extern void irq4();
 
 extern void test_idt();
 
+
+struct registers_info_struct
+{
+    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
+    unsigned int interrupt_num, err_code;    /* our 'push byte #' and ecodes do this */
+    unsigned int eip, cs, eflags, useless_esp, ss;   /* pushed by the processor automatically */ 
+} __attribute__((packed));
+typedef struct registers_info_struct registers_info;
+
+
 void set_idt_gate(int n, unsigned int handler_address)
 {
     IDT[n].offset_lower = low_16(handler_address);
@@ -148,8 +158,6 @@ void initIDT()
     load_idt( (unsigned int)&idt_descriptor );
 
     init_keyboard_driver();
-
-    int b = 0;
 }
 
 
@@ -178,7 +186,7 @@ void interrupt_handler_1()
     kprint("isr_handler1\n");
 }
 
-void interrupt_handler_2()
+void interrupt_handler_2(registers_info* info)
 {
     kprint("isr_handler2\n");
 }
@@ -238,9 +246,12 @@ void interrupt_handler_13()
     kprint("isr_handler\n");
 }
 
-void interrupt_handler_14()
+void page_fault_handler(registers_info* info);
+
+void interrupt_handler_14(registers_info* info)
 {
-    kprint("isr_handler\n");
+    kprint("isr_handler 14\n");
+    page_fault_handler(info);
 }
 
 void interrupt_handler_15()
@@ -337,7 +348,6 @@ void irq0_handler()
 void irq1_handler()
 {
     keyboard_handler();
-
     port_byte_out(0x20, 0x20);
 }
 

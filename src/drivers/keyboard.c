@@ -102,11 +102,6 @@ void init_keyboard_driver()
 void keyboard_handler()
 {
     unsigned char scan_code = port_byte_in(0x60);
-    // kprint("keyboard handler\n");
-
- //   if (scan_code > 57) 
- //       return;
-
     unsigned char ascii = keyboard_map[scan_code];
     char str[2] = {ascii, '\0'};
     kprint(str);

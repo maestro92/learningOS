@@ -165,6 +165,64 @@ void kprint(char* string)
 }
 
 
+void kprint_char(char c)
+{
+    char tmp[2];
+    tmp[0] = c;
+    tmp[1] = '\0';
+    kprint(tmp);
+}
+
+void prntnum(unsigned long n, int base, char sign, char *outbuf)
+{
+
+    int i = 12;
+    int j = 0;
+
+    do{
+        outbuf[i] = "0123456789ABCDEF"[n % base];
+        i--;
+        n = n/base;
+    }while( n > 0);
+
+    if(sign != ' '){
+        outbuf[0] = sign;
+        ++j;
+    }
+
+    while( ++i < 13){
+       outbuf[j++] = outbuf[i];
+    }
+
+    outbuf[j] = 0;
+
+}
+
+void kprint_hex(unsigned int n)
+{
+    int base = 16;
+    
+    if (n == 0)
+        kprint_char ('0');
+
+    kprint("0x");
+    char hex_numbers[16] = "0123456789ABCDEF";
+
+    char output[9];
+    output[8] = '\0';
+    int i = 7;
+    int res = 0;
+    while (n > 0)
+    {
+        res = n % 16;
+        output[i] = hex_numbers[res];
+        i--;
+        n = n / 16;
+    }
+    kprint(output);
+}
+
+
 void clear_screen()
 {
     int r = 0;

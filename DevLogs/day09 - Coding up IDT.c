@@ -290,7 +290,7 @@ lets take a look at the set_idt_gate();
 
 
 ##########################################################################
-######################## The Interrupt Handlers ##########################
+######################## The Exception Handlers ##########################
 ##########################################################################
 
 so now we have finished defining the idt_entry class, we now need to concern ourselves with the actual 
@@ -368,114 +368,72 @@ So roughly, it will look like this
 so now we need to understand what to actually do in our interrupt handler logic code 
 
 
-##########################################################
-##################### Stack ##############################
-##########################################################
-
+#######################################################################
+##################### Handling Exception ##############################
+#######################################################################
 
 So lets look at what the Linux Kernel says 
+
+I do want to make the distinction that there is Exceptions and Interrupts. 
+for the first 32 interrupts, we want to handle them as exceptions. 
+for the IRQ (which we will discuss in the next chapter), we will handle them as interrupts. 
+
+
 there is a section called "Hardware Handling of Interrupts and Exceptions" at Chapter 4
 https://doc.lagout.org/operating%20system%20/linux/Understanding%20Linux%20Kernel.pdf
 
-        After executing an instruction, the cs and eip pair of registers contain the logical
-        address of the next instruction to be executed. Before dealing with that instruction, the
-        control unit checks whether an interrupt or an exception occurred while the control unit
-        executed the previous instruction. If one occurred, the control unit does the following:
+first, on page 148, it says 
+
+        Exception handlers have a standard structure consisting of three steps:
+        1. Save the contents of most registers in the Kernel Mode stack (this part is coded in assembly language).
+        2. Handle the exception by means of a high-level C function.
+        3. Exit from the handler by means of the ret_from_exception( ) function.
 
 
-        6. If a fault has occurred, it loads cs and eip with the logical address of the instruction that caused the exception so that it can be executed again.
+On Page 149 ~ 150 it goes into more detail 
+
+
+        1. Saves the registers that might be used by the high-level C function on the stack.
+
+        2. Issues a cld instruction to clear the direction flag DF of eflags, thus making sure that autoincreases on the edi and esi 
+        registers will be used with string instructions.*
+
+        3. Copies the hardware error code saved in the stack at location esp+36 in edx.
+        Stores the value –1 in the same stack location. As we’ll see in the section “Reexecution of System Calls” in Chapter 11, this value is used to separate 0x80 exceptions from other exceptions.
         
-        7. Saves the contents of eflags, cs, and eip in the stack.
-
-        8. If the exception carries a hardware error code, it saves it on the stack.
+        4. Loads edi with the address of the high-level do_handler_name( ) C function
+        saved in the stack at location esp+32; writes the contents of es in that stack
+        location.
         
-        9. Loads cs and eip, respectively, with the Segment Selector and the Offset fields of
-        the Gate Descriptor stored in the ith entry of the IDT. These values define the
-        logical address of the first instruction of the interrupt or exception handler.
+        5. Loads in the eax register the current top location of the Kernel Mode stack. This
+        address identifies the memory cell containing the last register value saved in
+        step 1.
+        
+        6. Loads the user data Segment Selector into the ds and es registers.
+        
+        7. Invokes the high-level C function whose address is now stored in edi.
 
-
-Note that these are executed by the Processor control unit, so these are all executed by the CPU itself. You 
-dont have to do any of this. Our isr0 code is going straight "the first instruction of the interrupt or exception handler."
-
-
-
+then finally at the end, on page 143 it says 
 
         After the interrupt or exception is processed, the corresponding handler must relinquish control to the 
-        interrupted process by issuing the iret instruction
+        interrupted process by issuing the iret instruction.
 
 
 
 
-so we add our iret instruction 
-
-IRET: pops values from the stack and restore the following register: CS, EIP, EFLAGS
+we will just do a "pusha" command to push all the general registers 
 
                 idt.asm 
 
                 global isr0
 
                 isr0:                     
-                    ....................................
-                    ....................................
-                    ....................................
-                    .... my interrupt handler logic ....
-                    ....................................
-                    ....................................
-                    ....................................
-
-    ----------->    iret
-
-
-
-
-then lets we look at "Exception Handling" (P 150) section 
-
-it says 
-                1. Save the contents of most registers in the Kernel Mode stack (this part is coded in assembly language).
-                2. Handle the exception by means of a high-level C function.
-                3. Exit from the handler by means of the ret_from_exception( ) function.
-
-
-to go into detail, we have:
-                1. Saves the registers that might be used by the high-level C function on the stack.
-
-                2. Issues a cld instruction to clear the direction flag DF of eflags, thus making sure
-                that autoincreases on the edi and esi registers will be used with string
-                instructions.*
-                
-                3. Copies the hardware error code saved in the stack at location esp+36 in edx.
-                Stores the value –1 in the same stack location. 
-                As we’ll see in the section “Reexecution of System Calls” in Chapter 11, this value is used to separate 0x80 exceptions from other exceptions.
-                
-                4. Loads edi with the address of the high-level do_handler_name( ) C function
-                saved in the stack at location esp+32; writes the contents of es in that stack
-                location.
-                
-                5. Loads in the eax register the current top location of the Kernel Mode stack. This
-                address identifies the memory cell containing the last register value saved in
-                step 1.
-                
-                6. Loads the user data Segment Selector into the ds and es registers.
-                7. Invokes the high-level C function whose address is now stored in edi.
-
-
-
-
-so for note number 1, "Saves the registers that might be used by the high-level C function on the stack."
-we will just push all the general registers 
-
-                idt.asm 
-
-                global isr0
-
-                isr0:                     
-                    pusha
+    ----------->    pusha
                     ...
                     ...
 
                     popa
-    ----------->    iret
-
+                    iret
 
 
 then for number 2, we add the cld command 
@@ -494,6 +452,7 @@ then we go on to call the interrupt_handler
                     iret
 
 
+step 3, 4, 5, 6, 7. we will ignore for now (this will be addressed later);
 
 obvioulsy we want to write our interrupt_handler_0 in C, so we do the following 
 we declare interrupt_handler_0 to be extern, and define it in a C file. 
@@ -523,8 +482,231 @@ we declare interrupt_handler_0 to be extern, and define it in a C file.
 
 
 
+################################################################################
+####################### Error Code and registers ############################### 
+################################################################################
 
-so you can imagine that we will have 32 of those, so it can get a bit repetitive 
+But as you can see, that was our brute force implementation, but one thing we forgot is to have the c level function 
+to have the error code and register information
+
+Recall that 
+
+So there are times where we want to access the error code in the handler. 
+
+Recall mentioned above, we have: 
+
+there is a section called "Hardware Handling of Interrupts and Exceptions" at Chapter 4
+https://doc.lagout.org/operating%20system%20/linux/Understanding%20Linux%20Kernel.pdf
+
+        8. If the exception carries a hardware error code, it saves it on the stack.
+        
+so there are times in our interrupt handler, we need to get that error code information. So we want to get that.
+So when we call isr_handler(), we want the c function to have access to the error code 
+
+so we are gonna want something like 
+
+
+                isr.c 
+
+                void interrupt_handler_14(error_code + register info)
+                {
+                    /* do something */
+                }
+
+This is where we will diverge from "Understanding the linux kernel". On Page 150, it says 
+
+        "The invoked function receives its arguments from the eax and edx registers rather
+        than from the stack."
+
+Bran_s Kernel Development gets it from the stack. For this tutorial, we will do what Bran_s Kernel Development did,
+and get it from the stack.
+
+so to draw a picture to see what our stack looks like when 
+
+
+                 _____________________
+                |                     |
+                |                     |
+                |_____________________|
+                |                     |
+                |                     |
+                |_____________________|
+                |                     |
+                |                     |
+                |_____________________|
+                |   call c level      |
+                |      handler        | 
+                |_____________________|
+                |                     |
+                |       edi           |
+                |       esi           |
+                |       ebp           |
+                |     original esp    |
+                |       ebx           |
+                |       edx           |                
+                |       ecx           | <----- done by us with the pusha command (order matters)
+                |       eax           |
+                |_____________________|                
+                |    interrupt_num    |
+                |    error code       | <------ done by hardware
+                |_____________________|
+                |       eip           |       
+                |       cs            |  
+                |      eflags         | <------ done by hardware (order matters)
+                |_____________________|
+                |                     |
+                |                     |
+                |_____________________|
+
+
+so for the handler to get all the register info and error code, we can just get it from the stack.
+
+Recall to do that in assembly language, you just push your function arguments on to the stack 
+
+                
+                push arg3 
+                push arg2 
+                push arg1
+                call function()
+                ...
+                ...
+
+
+so we can do something similar to access all the error_code and register info
+
+                interrupt.asm
+
+                isr14:   
+                    push byte 14                  
+                    pusha
+                    cld
+                    mov eax, esp    <-------------
+                    push eax        <-------------                    
+                    call interrupt_handler_14       
+                    add esp, 4  
+                    popa
+                    add esp, 8
+                    iret
+
+                isr.c
+
+                /* This defines what the stack looks like after an ISR was running */
+                struct register_info
+                {
+                    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
+                    unsigned int interrupt_num, err_code;    /* our 'push byte #' and ecodes do this */
+                    unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
+                };
+                
+
+                void interrupt_handler_14(register_info *info)
+                {
+                    kprint("isr_handler 14\n");
+                    page_fault_handler();
+                }
+
+
+you can see that we just define a struct that matches out stack, which is the register_info struct.
+and in the interrupt_handler_14, we get the pointer to it by using the two instructions 
+
+                mov eax, esp    <-------------
+                push eax        <-------------
+
+
+one thing is that when you call "push byte 14", the push instruction is by default always 32 bits.
+so in our register_info struct, we have the interrupt_num as an unsigned int.
+
+
+according to the spec 
+https://c9x.me/x86/html/file_module_x86_id_270.html
+The pusha command 
+
+                Push EAX, ECX, EDX, EBX, original ESP, EBP, ESI, and EDI.
+
+so we just order them in reverse in the register_info struct. 
+
+
+-   linux_s approach
+
+If you look at "Understanding the Linux Kernel" page 162, Section "Saving the registers for the interrupt handler"
+
+there is a code snippet
+
+                common_interrupt:
+                    SAVE_ALL
+                    movl %esp,%eax          <---------------
+                    call do_IRQ
+                    jmp ret_from_intr
+
+
+where SAVE_ALL is
+
+                cld
+                push %es
+                push %ds
+                pushl %eax
+                pushl %ebp
+                pushl %edi
+                pushl %esi
+                pushl %edx
+                pushl %ecx
+                pushl %ebx
+                movl $_ _USER_DS,%edx
+                movl %edx,%ds
+                movl %edx,%es
+
+
+the book also says 
+
+        SAVE_ALL saves all the CPU registers that may be used by the interrupt handler on the stack, except for eflags, cs, eip, ss and esp, 
+        which ar already saved automatically by the control unit.
+
+        After saving the registers, the address of the current top stack location is saved in the
+        eax register;
+
+                _ _attribute_ _((regparm(3))) unsigned int do_IRQ(struct pt_regs *regs)
+
+        The regparm keyword instructs the function to go to the eax register to find the value
+        of the regs argument; as seen above, eax points to the stack location containing the
+        last register value pushed on by SAVE_ALL.
+
+
+
+You can actually look at how the |pt_regs| struct is defined from google since Linux src code is all open to us
+https://github.com/torvalds/linux/blob/v4.8/arch/x86/include/uapi/asm/ptrace.h
+
+                struct pt_regs {
+                    long ebx;
+                    long ecx;
+                    long edx;
+                    long esi;
+                    long edi;
+                    long ebp;
+                    long eax;
+                    int  xds;
+                    int  xes;
+                    int  xfs;
+                    int  xgs;
+                    long orig_eax;
+                    long eip;
+                    int  xcs;
+                    long eflags;
+                    long esp;
+                    int  xss;
+                };
+
+so its very similar to Bran_s Kernel implementation
+
+
+################################################################################
+################################ All 32 ISRs ############################### 
+################################################################################
+And recall, there are exceptions that pushes an error code and there are those that dont. 
+
+OS dev has a table that describes all of it
+https://wiki.osdev.org/Exceptions
+
+So for the ones we dont have error code pushed by the hardware, we have:
 
                 idt.asm 
 
@@ -536,54 +718,86 @@ so you can imagine that we will have 32 of those, so it can get a bit repetitive
 
                 extern interrupt_handler_0
                 extern interrupt_handler_1
-                extern interrupt_handler_2
                 ...
                 ...
+                extern interrupt_handler_14
 
-                isr0:                     
+
+                isr0: 
+                    push byte 0    <---- fake error code
+                    push byte 0    <---- interrupt number               
                     pusha
                     cld
                     call interrupt_handler_0 
+                    add esp, 4                      
                     popa
+                    add esp, 8
                     iret
 
-                isr1:                     
+                ...
+                ...
+
+                isr14:   
+                    push byte 14                  
                     pusha
                     cld
-                    call interrupt_handler_1
+                    mov eax, esp    
+                    push eax                            
+                    call interrupt_handler_14       
+                    add esp, 4  
                     popa
+                    add esp, 8
                     iret
 
-                isr2:                     
+                ...
+                ...
+
+
+
+so we can write a general function to combine some of these repetitive code
+also the thing is that ones like isr0 wont have a error code pushed onto the stack. 
+So assuming every handler is gonna want the error code and the register situation,
+meaning all of isr0 ~ isr31 would want register_info *info, then we can just make some of the logic common.
+
+The trick is to push error code of 0 for the ones that the hardware wont push 
+so our code looks like: 
+
+                idt.asm 
+
+                global isr0
+                global isr1
+                global isr2
+                ...
+                ...
+
+                extern interrupt_handler_0
+                extern interrupt_handler_1
+                ...
+                ...
+                extern interrupt_handler_14
+
+
+                isr0:                     
+                    push dword 0
+                    jmp common_interrupt_handler
+                ...
+                ...
+
+                isr14:                     
+                    jmp common_interrupt_handler
+
+                common_interrupt_handler:
+
                     pusha
                     cld
-                    call interrupt_handler_2 
+                    mov eax, esp    
+                    push eax                            
+                    call interrupt_handler_14       
                     popa
                     iret
-
                 ...
                 ...
 
-
-                isr.c 
-
-                void interrupt_handler_0(void)
-                {
-                    /* do something */
-                }
-
-                void interrupt_handler_1(void)
-                {
-                    /* do something */
-                }
-
-                void interrupt_handler_2(void)
-                {
-                    /* do something */
-                }
-
-                ...
-                ...
 
 
 
@@ -694,6 +908,7 @@ and after I added the __attribute__((packed)), INT 0x2 now calls into isr2(); wh
 
 so the lesson here is anything that intel expects to be a tightly compact data structure, we need 
 to tightly pack it. 
+
 
 
 
@@ -1552,5 +1767,185 @@ We set the isr handlers to be external, so we can access the addresses of our AS
 Preprocessor Output 
 
 gcc -E 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we will just do a "pusha" command to push all the general registers 
+
+                idt.asm 
+
+                global isr0
+
+                isr0:                     
+    ----------->    pusha
+                    ...
+                    ...
+
+                    popa
+                    iret
+
+
+
+
+
+
+
+
+The invoked function receives its arguments from the eax and edx registers rather
+than from the stack. 
+
+
+So the code snippet provided on page 149 is:
+
+        handler_name:
+            pushl $0 /* only for some exceptions */
+            pushl $do_handler_name
+            jmp error_code
+
+
+
+
+
+
+
+
+
+        After executing an instruction, the cs and eip pair of registers contain the logical
+        address of the next instruction to be executed. Before dealing with that instruction, the
+        control unit checks whether an interrupt or an exception occurred while the control unit
+        executed the previous instruction. If one occurred, the control unit does the following:
+
+
+        5. if there is a privilege level change, we save the previous values of ss and esp.
+
+        6. If a fault has occurred, it loads cs and eip with the logical address of the instruction that caused the exception so that it can be executed again.
+        
+        7. Saves the contents of eflags, cs, and eip in the stack.
+
+        8. If the exception carries a hardware error code, it saves it on the stack.
+        
+        9. Loads cs and eip, respectively, with the Segment Selector and the Offset fields of
+        the Gate Descriptor stored in the ith entry of the IDT. These values define the
+        logical address of the first instruction of the interrupt or exception handler.
+
+
+Note that these are executed by the Processor control unit, so these are all executed by the CPU itself. You 
+dont have to do any of this. Our isr0 code is going straight to "the first instruction of the interrupt or exception handler."
+
+
+        After the interrupt or exception is processed, the corresponding handler must relinquish control to the 
+        interrupted process by issuing the iret instruction
+
+
+
+
+so we add our iret instruction 
+
+IRET: pops values from the stack and restore the following register: CS, EIP, EFLAGS
+
+                idt.asm 
+
+                global isr0
+
+                isr0:                     
+                    ....................................
+                    ....................................
+                    ....................................
+                    .... my interrupt handler logic ....
+                    ....................................
+                    ....................................
+                    ....................................
+
+    ----------->    iret
+
+
+
+#######################################################################
+##################### Handling Interrupts #############################
+#######################################################################
+
+
+
+Page 149 ~ 150 goes into detail of how we do this in detail
+
+
+                1. Saves the registers that might be used by the high-level C function on the stack.
+
+                2. Issues a cld instruction to clear the direction flag DF of eflags, thus making sure
+                that autoincreases on the edi and esi registers will be used with string
+                instructions.*
+                
+                3. Copies the hardware error code saved in the stack at location esp+36 in edx.
+                Stores the value –1 in the same stack location. 
+                As we’ll see in the section “Reexecution of System Calls” in Chapter 11, this value is used to separate 0x80 exceptions from other exceptions.
+                
+                4. Loads edi with the address of the high-level do_handler_name( ) C function
+                saved in the stack at location esp+32; writes the contents of es in that stack
+                location.
+                
+                5. Loads in the eax register the current top location of the Kernel Mode stack. This
+                address identifies the memory cell containing the last register value saved in
+                step 1.
+                
+                6. Loads the user data Segment Selector into the ds and es registers.
+
+                7. Invokes the high-level C function whose address is now stored in edi.
+
+
+
+
+So I am going to piece together the code from the "Understanding the Linux Kernel"
+
+so for note number 1, "Saves the registers that might be used by the high-level C function on the stack."
+We have                
+
+                handler_name:
+                    pushl $0 /* only for some exceptions */
+                    pushl $do_handler_name
+                    jmp error_code
+
+then on page 162, section "Saving the registers for the interrupt handler", it goes into further detail 
+on how to save the registers for the interrupt handler. 
+
+                common_interrupt:
+                    SAVE_ALL
+                    movl %esp,%eax
+                    call do_IRQ
+                    jmp ret_from_intr
+
+
+and SAVE_ALL is 
+
+                cld
+                    push %es
+                    push %ds
+                    pushl %eax
+                    pushl %ebp
+                    pushl %edi
+                    pushl %esi
+
+                    pushl %edx
+                    pushl %ecx
+                    pushl %ebx
+                    movl $_ _USER_DS,%edx
+                    movl %edx,%ds
+                    movl %edx,%es
+
+
+
+
+
+There seems to be some disagreemnt on the order of 1 and 2 (not sure if it even matters);
 
 

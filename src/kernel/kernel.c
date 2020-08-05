@@ -7,12 +7,15 @@ int start()
    kernel_main();
 }
 
+#define KERNEL_CODE_SEGMENT 0x08
+#define KERNEL_DATA_SEGMENT 0x10
 
-#include "util.c"
+#include "../libc/util.c"
 #include "../drivers/driver_util.c"
 #include "../drivers/screen.c"
 #include "../drivers/keyboard.c"
 #include "idt.c"
+#include "paging.c"
 
 void test_print()
 {
@@ -60,6 +63,15 @@ void test_print()
 
 
 
+void test_paging()
+{
+   unsigned int *ptr = (unsigned int*)0x00000FFF;
+   unsigned int do_page_fault = *ptr;
+
+   unsigned int *ptr2 = (unsigned int*)0xB0000000;
+   do_page_fault = *ptr2;
+}
+
 
 int kernel_main()
 {
@@ -73,6 +85,10 @@ int kernel_main()
    kprint("back here");
 
    asm volatile("sti");
+
+   init_paging();
+
+   test_paging();
 /*
    for(;;) 
    {

@@ -2,7 +2,8 @@ so for some reason, the tutorial from
 (https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf)
 is discontinued after writing the screen driver, so we have to opt to follow another tutorial.
 
-We will now follow (https://github.com/cfenollosa/os-tutorial/tree/master/18-interrupts)
+We will now follow 
+https://github.com/cfenollosa/os-tutorial/tree/master/18-interrupts
 lesson 18. So we will learn how to do interrupts. 
 
 
