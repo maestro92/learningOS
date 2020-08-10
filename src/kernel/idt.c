@@ -251,7 +251,7 @@ void page_fault_handler(registers_info* info);
 void interrupt_handler_14(registers_info* info)
 {
     kprint("isr_handler 14\n");
-    page_fault_handler(info);
+//    page_fault_handler(info);
 }
 
 void interrupt_handler_15()

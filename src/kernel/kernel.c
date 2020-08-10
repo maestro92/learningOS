@@ -15,7 +15,8 @@ int start()
 #include "../drivers/screen.c"
 #include "../drivers/keyboard.c"
 #include "idt.c"
-#include "paging.c"
+#include "pmmgr.c"
+// #include "paging.c"
 
 void test_print()
 {
@@ -73,6 +74,29 @@ void test_paging()
 }
 
 
+void test_physical_memory_mgr()
+{
+   unsigned int* p = (unsigned int*)pmmgr_alloc_block();
+   kprint("allocated at");
+   kprint_hex((unsigned int)p);
+   kprint("\n");
+
+   unsigned int* p2 = (unsigned int*)pmmgr_alloc_block();
+   kprint("allocated at");
+   kprint_hex((unsigned int)p2);
+   kprint("\n");
+
+   pmmgr_free_block(p);
+
+   p = (unsigned int*)pmmgr_alloc_block();
+   kprint("Unallocated p to free block 1. p is reallocated to ");
+   kprint_hex((unsigned int)p);
+   kprint("\n");
+
+   pmmgr_free_block(p);
+}
+
+
 int kernel_main()
 {
    test_print();
@@ -86,9 +110,13 @@ int kernel_main()
 
    asm volatile("sti");
 
-   init_paging();
+   init_physical_memory_manager();
+   test_physical_memory_mgr();
 
-   test_paging();
+
+ //  init_paging();
+
+ //  test_paging();
 /*
    for(;;) 
    {

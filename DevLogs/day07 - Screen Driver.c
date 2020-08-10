@@ -77,7 +77,33 @@ registers.
 What we mean by I/O address space is: recall this map from day 4
 https://manybutfinite.com/post/motherboard-chipsets-memory-map/
 
-we reserver a portion of the physical ram for devices
+we reserve a portion of the physical ram for devices
+
+It also mentions that "In Linux, the file /proc/iomem neatly lists these address range mappings"
+
+so lets take a look at that file 
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/4/html/reference_guide/s2-proc-iomem
+
+                00000000-0009fbff : System RAM
+                0009fc00-0009ffff : reserved
+                000a0000-000bffff : Video RAM area
+                000c0000-000c7fff : Video ROM
+                000f0000-000fffff : System ROM
+                00100000-07ffffff : System RAM
+                  00100000-00291ba8 : Kernel code
+                  00291ba9-002e09cb : Kernel data
+                e0000000-e3ffffff : VIA Technologies, Inc. VT82C597 [Apollo VP3]
+                e4000000-e7ffffff : PCI Bus #01
+                  e4000000-e4003fff : Matrox Graphics, Inc. MGA G200 AGP
+                  e5000000-e57fffff : Matrox Graphics, Inc. MGA G200 AGP
+                e8000000-e8ffffff : PCI Bus #01
+                  e8000000-e8ffffff : Matrox Graphics, Inc. MGA G200 AGP
+                ea000000-ea00007f : Digital Equipment Corporation DECchip 21140 [FasterNet]
+                  ea000000-ea00007f : tulip
+                ffff0000-ffffffff : reserved
+
+
+
 
 also referencing the Wiki page again,
 https://en.wikipedia.org/wiki/Memory-mapped_I/O

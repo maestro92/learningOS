@@ -494,6 +494,31 @@ So here we want to map the pages to the beginning of memory 0 ~ 4MB
                 }
 
 
+
+
+
+
+
+
+in the JamesM Tutorial, apparently, you can define a struct and its bit fields 
+
+                typedef struct page
+                {
+                    u32int present    : 1;   // Page present in memory
+                    u32int rw         : 1;   // Read-only if clear, readwrite if set
+                    u32int user       : 1;   // Supervisor level only if clear
+                    u32int accessed   : 1;   // Has the page been accessed since last refresh?
+                    u32int dirty      : 1;   // Has the page been written to since last refresh?
+                    u32int unused     : 7;   // Amalgamation of unused and reserved bits
+                    u32int frame      : 20;  // Frame address (shifted right 12 bits)
+                } page_t;
+
+
+
+
+
+
+
 again, to look at the page-table entry, you can look at the intel specs,
 Table 4-6. Format of a 32-Bit Page-Table Entry that Maps a 4-KByte Page
 
@@ -599,3 +624,146 @@ Page frame address
 ######################################################################
 
 The Translation Lookahead Buffer (TLB) is a cache for paging addresses.
+
+
+
+
+
+So we got Paging set up, we need to do the page fault handler
+
+https://wiki.osdev.org/Paging
+
+
+so the way we handle a page fault is through interrupts.
+so if you recall intel sepcs, 
+https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
+chapter 6.15, 
+
+Interrupt 14 is the Page-Fault Exception
+
+So we need to setup the interrupt handler for interrupt 14.
+
+
+
+########################################################################
+############################ Handler ###################################
+########################################################################
+
+
+
+                void page_fault_handler(registers_info* info)
+                {   
+                   // A page fault has occurred.
+                   // The faulting address is stored in the CR2 register.
+                   unsigned int faulting_address;
+                   asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
+
+                   // The error code gives us details of what happened.
+                   int present   = !(info->err_code & 0x1); // Page not present
+                   int rw = info->err_code & 0x2;           // Write operation?
+                   int us = info->err_code & 0x4;           // Processor was in user-mode?
+                   int reserved = info->err_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
+                   int id = info->err_code & 0x10;          // Caused by an instruction fetch?
+
+                   // Output an error message.
+                   kprint("Page fault! ( ");
+                   if (present) {kprint("page not present ");}
+                   if (rw) {kprint("read-only ");}
+                   if (us) {kprint("user-mode ");}
+                   if (reserved) {kprint("reserved ");}
+                   kprint(") at ");
+                   kprint_hex(faulting_address);
+                   kprint("\n");
+
+                   for(;;);
+                }
+
+
+
+
+CR2 register
+
+    Linear Address that generated the exception 
+
+
+    https://pdos.csail.mit.edu/6.828/2004/lec/lec8-slides.pdf
+
+
+
+
+########################################################################
+############################ Testing ###################################
+########################################################################
+
+so to to test paging, you can have something like this
+
+                void test_paging()
+                {
+                   unsigned int *ptr = (unsigned int*)0x00000FFF;
+                   unsigned int do_page_fault = *ptr;
+
+                   unsigned int *ptr2 = (unsigned int*)0xB0000000;
+                   do_page_fault = *ptr2;
+                }
+
+
+
+
+
+########################################################################
+############################### Malloc #################################
+########################################################################
+
+So now we can malloc stuff. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://wiki.osdev.org/Memory_Allocation
+
+At square one, the kernel is the only process in the system. But it is not alone: BIOS data structures, 
+memory-mapped hardware registers etc. populate the address space. Among the first things a kernel must do 
+is to start bookkeeping about which areas of physical memory are available for use and which are to be considered "occupied".
+
+The free space will subsequently be used for kernel data structures, application binaries, their heap and stack etc. - 
+the kernel needs a function that marks a memory area as reserved, and makes that memory available to the process requiring it. 
+In the C Standard Library, this is handled by malloc() and free(); in C++ by new() and delete().
+
+
+Page Frame Allocator
+
+
+
+For managing things that arent RAM, you need a map of the physical address space that says which areas are used for what. 
+For example, when you are trying to initialize a new PCI device (to configure its "BARs") you want to search for an area that 
+isnt ROM, isnt used by another device and isnt RAM. This information includes "cacheability attributes" and is used to configure
+ (and manage) the CPU_s MTRRs. The physical address space map should also contain information 
+ for RAM - e.g. is it volatile or non-volatile, is it hot-pluggable, etc.
+
+
+
+
+
+
+
+9.3.2 The Virtual Address for the Kernel
+Preferably, the kernel should be placed at a very high virtual memory address, for example 0xC0000000 (3 GB). 
+The user mode process is not likely to be 3 GB large, which is now the only way that it can conflict with the kernel. 
+When the kernel uses virtual addresses at 3 GB and above it is called a higher-half kernel. 
+0xC0000000 is just an example, the kernel can be placed at any address higher than 0 to get the same benefits. 
+Choosing the correct address depends on how much virtual memory should be available 
+for the kernel (it is easiest if all memory above the kernel virtual address should belong to the kernel) 
+    and how much virtual memory should be available for the process.
+
+If the user mode process is larger than 3 GB, some pages will need to be swapped out by the kernel. 
+Swapping pages is not part of this book.
+
