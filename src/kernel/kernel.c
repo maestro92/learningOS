@@ -16,13 +16,23 @@ int start()
 #include "../drivers/keyboard.c"
 #include "idt.c"
 #include "pmmgr.c"
-// #include "paging.c"
+#include "paging.c"
 
 void test_print()
 {
    clear_screen();
    kprint("Martin OS 2\n");
+   kprint_hex(0xA);
+   kprint("\n");   
+   kprint_hex(0xFF);
 
+   kprint_num(1234);
+   kprint("\n\n");
+ 
+   kprint_num(-1234);
+   kprint_num(0);
+   kprint("\n\n");
+ //  kprint("Martin OS 2\n");   
 /*
    char message[2000];; 
    char* cur = message;
@@ -74,17 +84,34 @@ void test_paging()
 }
 
 
+
 void test_physical_memory_mgr()
 {
    unsigned int* p = (unsigned int*)pmmgr_alloc_block();
-   kprint("allocated at");
-   kprint_hex((unsigned int)p);
-   kprint("\n");
+   if(p != 0)
+   {
+      kprint("allocated at ");
+      kprint_hex((unsigned int)p);
+      kprint("\n");
+   }
+   else
+   {
+      kprint("ERROR: allocation unsuccessful\n");
+   }
 
    unsigned int* p2 = (unsigned int*)pmmgr_alloc_block();
-   kprint("allocated at");
-   kprint_hex((unsigned int)p2);
-   kprint("\n");
+
+   if(p2 != 0)
+   {
+      kprint("allocated at ");
+      kprint_hex((unsigned int)p2);
+      kprint("\n");
+   }
+   else
+   {
+      kprint("ERROR: allocation unsuccessful\n");
+   }
+
 
    pmmgr_free_block(p);
 
@@ -114,7 +141,7 @@ int kernel_main()
    test_physical_memory_mgr();
 
 
- //  init_paging();
+   // init_paging();
 
  //  test_paging();
 /*

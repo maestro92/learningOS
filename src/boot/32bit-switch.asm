@@ -21,7 +21,7 @@ init_protected_mode:
    mov   fs, ax
    mov   gs, ax
 
-   mov ebp, 0x90000 	; update the stack again
-   mov esp, ebp 		;	
+   mov ebp, 0x90000 	      ; update the stack again
+   mov esp, ebp 		      ;	
    
    call begin_protected_mode	

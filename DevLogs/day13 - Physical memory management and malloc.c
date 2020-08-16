@@ -1,3 +1,30 @@
+Detecting Memory
+
+
+The first thing we need to do is abtain the amount of RAM inside of the computer system. 
+There are alot of different ways to do this. Some methods may work on some systems while others may not.
+
+Getting the amount of memory can be very system dependent.
+
+
+I should point out that there is indeed other methods that we can do to abtain the amount of memory within the system. For example, the CMOS, PnP, and SMBios. 
+However the only way to guarantee that you get the correct amount is from the device that configuares it: The BIOS.
+
+
+
+BIOS INT 0x12 - Get Memory Size (Conventional Memory)
+
+
+
+
+
+
+
+
+
+
+
+
 
 So here we need to actually properly map virtual memory to usuable physical memory 
 

@@ -5,6 +5,32 @@
 as mentioned in day 4, the intel 80286 introduced a 2nd version of segmentation in 1982 that added support for virtual memory and memory protection.
 And GDT is how they accomplished the memory protection. 
 
+
+so quoting the intel manual
+
+        segmentation provides a mechanism for dividing the processor’s addressable memory
+        space (called the linear address space) into smaller protected address spaces called segments. Segments can
+        be used to hold the code, data, and stack for a program or to hold system data structures (such as a TSS or LDT).
+        If more than one program (or task) is running on a processor, each program can be assigned its own set of
+        segments. The processor then enforces the boundaries between these segments and insures that one program
+        does not interfere with the execution of another program by writing into the other program’s segments. The
+        segmentation mechanism also allows typing of segments so that the operations that may be performed on a particular 
+        type of segment can be restricted
+
+        https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.html
+
+
+
+
+
+
+
+
+###############################################################################
+######################################## GDT ##################################
+###############################################################################
+
+
 The GDT is a data structure, starting with the 80286 in order to define the characteristics of the various memory areas. 
 For example, 
 
@@ -286,6 +312,58 @@ If its too hard to see, you can change the color in the "print_string_pm" functi
 in print_string_pm, we are doing WHITE_ON_BLACK. Consdier changing to some other color. 
 
 
+
+-   Stack
+Another thing is that you can see where we set the stack 
+
+
+                 _______________________________    <--------- 0x100000 (1MB)
+                |                               |
+                |                               |
+                |         System BIOS           | 
+                |                               |
+                |                               |
+                |_______________________________|   <--------- 0x000F0000 (960 kb) 
+                |                               |
+                |       BIOS Shadow Area        |
+                |_______________________________|   <--------- 0x000C8000 (800 kb) 
+                |                               |
+                |       Video ROM BIOS and      |
+                |_______________________________|   <--------- 0x000C0000 (768 kb)
+                |                               |
+                |   Monochrome Video Memory and |   
+                |       Color Video Memory      |
+                |_______________________________|   <--------- 0x000B0000 (704 kb)
+                |                               |
+                |         Legacy Video          |
+                |       Card Memory Access      |
+                |_______________________________|   <--------- 0x000A0000 (640 kb)
+                |                               |
+                |                               |   
+                |                               |      our stack
+                |_______________________________|   <--------- 0x90000 (576 kb)          
+                |                               |
+                |                               |
+                |                               |
+                |                               |               
+                |                               |
+                |_______________________________|   
+                |                               |   
+                |           bootsector          |   
+                |_______________________________|   <-------- 0x00007C00 (31 kb)              
+                |                               |
+                |                               |
+                |                               |
+                |                               |
+                |                               |   
+                |                               |   
+                |_______________________________|   <--------- 0x00000000 
+
+
+
+
+
+
 #######################################################################
 ######################## Debugging ####################################
 #######################################################################
@@ -448,5 +526,4 @@ start another shell
 
 
 then you can start calling "stepi" to step through it
-
 

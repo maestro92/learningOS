@@ -119,7 +119,7 @@ so for our first boot sector code, it looks like:
                 dw 0xaa55
 
 note that this is written in NASM
-[https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones]
+https://github.com/cfenollosa/os-tutorial/tree/master/01-bootsector-barebones
 
 
 
@@ -138,6 +138,10 @@ when programming in a more typical Operating system enviornment
 "-o outfile", write output to an outfile
 
 
+
+############################################################
+############################## QEMU ########################
+############################################################
 and then we run it in qemu 
                 
                 qemu-system-x86_64 boot_sect_simple.bin
@@ -149,6 +153,21 @@ so to understand what is going on, so if you look at the qemu command
 
 disk_image is essentially a binary map of the hard disk. so when we compile our boot sector code as a binary code,
 we give it to qemu, and qemu will interpret it as a hard disk.
+
+
+I found this link for QEMU options 
+https://wiki.gentoo.org/wiki/QEMU/Options
+
+-hda IMAGE.img - Set a virtual hard drive and use the specified image file for it.
+
+
+
+
+
+
+
+
+
 
 
 
@@ -284,6 +303,8 @@ So essentially to have backward compatibility, the solution Intel used is to emu
 the Intel 8086, which ad support for 16-bit instructions and no notion of memory protection. Later on we will 
 be switching into 32 bit or 64 bit protected mode. 
 
+All x86 compatible boot into 16 bit mode. 
+
 -   RAM avilable
 
 So one thing that is quite trick is that when the computer is in 16 bit real mode, you would think that the computer would have 
@@ -297,7 +318,7 @@ so its 20 bit wide addressing
 
 hence the amount of memory is actually 2^20, which gives you 1 MB 
 
-
+Essentially, in 16 bit mode, we are limited to 1 MB (+64k) of memory. 
 
 ########################################################################
 ############################# Print out Hello ##########################
@@ -411,8 +432,8 @@ cd 10 b0 6f cd 10 e9 fd ff 00 00 00 00 00 00 00
 #####################################################################
 
 
-another thing is that all code run by the CPU is somehwere in. The CPU fetches and executes instructions from memory. 
-So for our boot sector code, we are initially in the hard drive. The BIOS loaded our 512-byte boot sector into memory and then, having finished 
+another thing is that all code run by the CPU is somehwere in memory. The CPU fetches and executes instructions from memory. 
+So for our boot sector code, they are initially in the hard drive. The BIOS loaded our 512-byte boot sector into memory and then, having finished 
 its initialisations, told the CPU to jump to the start of our code, whereupon it began executing our first instructions,
 then the next, then the next, etc. 
 
@@ -439,20 +460,12 @@ which is 31 KB
                 |                   |
                 |                   |
                 |                   |
-                |                   |
-                |                   |
-                |                   |
-                |                   |
-                |                   |
-                |                   |
-                |                   |
-                |                   |
                 |___________________|   <--------- 0x00007C00 (31 kb)         
+                |    bootsector     |
+                |                   |    bootsector is 512 bytes
+                |- - - - - - - - - -|
                 |                   |
-                |   bootsector      |
-                |                   |
-                |                   |
-                |___________________|   <--------- 0x00008000 (32 kb)
+                |___________________|  <--------- 0x00008000 (32 kb)
                 |                   |
                 |                   |                                
                 |                   |
@@ -465,9 +478,11 @@ which is 31 KB
                 |___________________|   <---------- 4 GB (not drawn to scale)
                                 
 
-as you can see, its 1 kb short of 32 kb. The reason why why bootsector code is at 0x7c00 is becuz 0x7c00 is 1k 
-(512 bytes for the bootsector plus an additional 512 bytes 
-for possible bootsector use) from the bottom of the original 32k installed memory. 
+as you can see, its 1 kb short of 32 kb. The reason why the bootsector code is at 0x7c00 is becuz 0x7c00 is 1k 
+(512 bytes for the bootsector plus an additional 512 bytes for possible bootsector use) 
+from the bottom of the original 32k installed memory. 
+
+Essentially we left another 512 bytes for the bootsector just in case it needs to use it.
 
 https://stackoverflow.com/questions/2058690/what-is-significance-of-memory-at-00007c00-to-booting-sequence
 
@@ -549,6 +564,40 @@ Note that if x is a label, its value is the address of that label
 
 
 
+
+so here, we are setting up our stack to be at 0x8000
+
+
+
+                 ___________________    <--------- 0x00000000 
+                |                   |
+                |                   |
+                |                   |
+                |___________________|   <--------- 0x00007C00 (31 kb)         
+                |    bootsector     |
+                |                   |    bootsector is 512 bytes
+                |- - - - - - - - - -|
+                |                   |
+                |___________________|   <--------- 0x00008000 (32 kb)
+                |                   |
+                |       stack       |                                
+                |                   |
+                |___________________|
+                |                   |                                
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |                                     
+                |                   |
+                |                   |                                     
+                |                   |
+                |___________________|   <---------- 4 GB (not drawn to scale)
+                                
+
+
+
+
 #####################################################################
 ####################### Reading Disk Sectors ########################
 #####################################################################
@@ -556,6 +605,9 @@ Note that if x is a label, its value is the address of that label
 
 As previously mentioned, our OS wont fit inside the bootsector 512 bytes, so we need to read 
 data from a disk, put it into memory and begin executing that code. 
+
+So you can think of this as a Second Stage bootloader. If we load all sectors for the 
+Second Stage loader in a good manner, the Second Stage Loader has no limitation in size. 
 
 https://www.cs.bham.ac.uk/~exr/lectures/opsys/10_11/lectures/os-dev.pdf
 https://github.com/cfenollosa/os-tutorial/tree/master/07-bootsector-disk
@@ -587,6 +639,13 @@ so you have to set
 
 
 
+There is also this link
+http://www.brokenthorn.com/Resources/OSDev5.html
+
+
+
+
+
 in the tutorial, in boot_sect_main.asm, you can see that 
 
 
@@ -595,7 +654,7 @@ in the tutorial, in boot_sect_main.asm, you can see that
                     mov bp, 0x8000 ; set the stack safely away from us
                     mov sp, bp
 
-                    mov bx, 0x9000 ; es:bx = 0x0000:0x9000 = 0x09000
+                    mov bx, 0x1000 ; es:bx = 0x0000:0x1000 = 0x1000
                     mov dh, 2 ; read 2 sectors
                     ; the bios sets 'dl' for our boot disk number
                     ; if you have trouble, use the '-fda' flag: 'qemu -fda file.bin'
@@ -604,7 +663,7 @@ in the tutorial, in boot_sect_main.asm, you can see that
 
 we called 
                 
-                mov bx, 0x9000
+                mov bx, 0x1000
 
 to set the "pointer to buffer" when we do our disk read call. 
 
@@ -652,10 +711,39 @@ pusha and popa means push all register values and pop all register values.
 
 
 
+So here, we are putting our OS to be at 0x1000
 
 
 
-
+                 ___________________    <--------- 0x00000000 
+                |                   |
+                |                   |
+                |                   |
+                |___________________|   <--------- 0x00007C00 (31 kb)         
+                |    bootsector     |
+                |                   |    bootsector is 512 bytes
+                |- - - - - - - - - -|
+                |                   |
+                |___________________|   <--------- 0x00008000 (32 kb)
+                |                   |
+                |       stack       |                                
+                |                   |
+                |___________________|   <--------- 0x00009000 (36 kb) 
+                |                   |
+                |       kernel      |                                
+                |                   |
+                |___________________|                
+                |                   |                                
+                |                   |
+                |                   |
+                |                   |
+                |                   |
+                |                   |                                     
+                |                   |
+                |                   |                                     
+                |                   |
+                |___________________|   <---------- 4 GB (not drawn to scale)
+                                
 
 
 

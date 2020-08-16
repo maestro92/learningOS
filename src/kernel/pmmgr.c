@@ -48,8 +48,13 @@ void pmmgr_set_block_used(unsigned int* bitmap, int block_index)
 
 void* pmmgr_alloc_block()
 {
-   if (get_num_usable_block <= 0)
+   if (get_num_usable_block() <= 0)
+   {
+      kprint("get_num_usable_block: ");
+      kprint_num(get_num_usable_block());
+      kprint("\n");
       return 0;
+   }
 
    int block_index = pmmgr_get_first_free_block_index();
 
@@ -77,7 +82,7 @@ void pmmgr_set_memory_region_free(unsigned int* base, int num_bytes)
    int block_index = (unsigned int)base / PHYSICAL_MEMORY_BLOCK_SIZE;
    int num_blocks = num_bytes / PHYSICAL_MEMORY_BLOCK_SIZE;
 
-   for(int i=0; i<num_blocks; i++)
+   for(int i=block_index; i<num_blocks; i++)
    {
       pmmgr_set_block_free(blocks_bitmap, i);
       pmmgr_used_block--;
@@ -92,7 +97,7 @@ void pmmgr_set_memory_region_used(unsigned int* base, int num_bytes)
    int block_index = (unsigned int)base / PHYSICAL_MEMORY_BLOCK_SIZE;
    int num_blocks = num_bytes / PHYSICAL_MEMORY_BLOCK_SIZE;
 
-   for(int i=0; i<num_blocks; i++)
+   for(int i=block_index; i<num_blocks; i++)
    {
       pmmgr_set_block_used(blocks_bitmap, i);
       pmmgr_used_block++;
@@ -102,10 +107,8 @@ void pmmgr_set_memory_region_used(unsigned int* base, int num_bytes)
 
 void init_physical_memory_manager()
 {
-   // so we just have 4 pages.
-
    // assume we have 16 KB of ram   
-   unsigned int ram_size = 0x4000;
+   unsigned int ram_size = 0x100000 + 0x4000;
 
    // we place the bitmap at 1MB
    pmmgr_max_blocks = ram_size / 0x1000;
@@ -130,15 +133,10 @@ void init_physical_memory_manager()
    blocks_bitmap = (unsigned int*)0x100000; 
 
    // At first, we just set all the memory region to be used
-   memory_set((unsigned char*)blocks_bitmap, 0xf, bitmap_byte_size);
-
-
-   // we will just set the first 1MB to be used 
-   unsigned int* base = 0;
-   pmmgr_set_memory_region_used(0, 0x100000);
+   memory_set((unsigned char*)blocks_bitmap, 0xff, bitmap_byte_size);
 
 
    // we will use 16 kb from 1MB + 4kb
-   base = (unsigned int*)(0x100000 + 0x1000);
+   unsigned int* base = (unsigned int*)(0x100000 + 0x1000);
    pmmgr_set_memory_region_free(base, ram_size);
 }

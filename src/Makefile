@@ -1,6 +1,6 @@
 all:
 	# compiling the bootsector code
-	nasm -f elf32 -g3 -F dwarf boot/32bit-main.asm -o build/bootsect.o
+	nasm -f elf32 -g3 -F dwarf boot/bootsector-main.asm -o build/bootsect.o
 	ld -Ttext=0x7c00 -melf_i386 build/bootsect.o -o build/bootsect.elf
 	objcopy -O binary build/bootsect.elf build/bootsect.img
 

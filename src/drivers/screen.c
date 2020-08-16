@@ -173,44 +173,91 @@ void kprint_char(char c)
     kprint(tmp);
 }
 
-void prntnum(unsigned long n, int base, char sign, char *outbuf)
-{
+void kprint_num(int num)
+{    
+    int sign = 0;
+    int cur_num = num;
 
-    int i = 12;
-    int j = 0;
-
-    do{
-        outbuf[i] = "0123456789ABCDEF"[n % base];
-        i--;
-        n = n/base;
-    }while( n > 0);
-
-    if(sign != ' '){
-        outbuf[0] = sign;
-        ++j;
+    if(num >= 0)
+    {
+        sign = 1;
+    }
+    else
+    {
+        sign = -1;
+        cur_num = -cur_num;
     }
 
-    while( ++i < 13){
-       outbuf[j++] = outbuf[i];
+    int length = 0;
+    
+    while(cur_num > 0)
+    {
+        cur_num /= 10;
+        length++;        
     }
 
-    outbuf[j] = 0;
 
+    if(sign == -1)
+    {
+        length++;
+    }
+    char tmp[length + 1];
+    tmp[length] = '\0';
+
+    // for debugging
+    for(int i=0; i<length; i++)
+    {
+        tmp[i] = ' ';
+    }
+
+
+
+    int i = 0;
+    cur_num = num;
+    if(sign == -1)
+    {
+        tmp[0] = '-';
+        i = 1;
+        cur_num = -cur_num;
+    }
+
+    i = length - 1;
+    while(cur_num > 0)
+    {
+        int remainder = cur_num % 10;
+        cur_num /= 10;
+        tmp[i--] = '0' + remainder;
+    }
+    kprint(tmp);
 }
+
+
 
 void kprint_hex(unsigned int n)
 {
     int base = 16;
     
     if (n == 0)
+    {
         kprint_char ('0');
+        return;
+    }
 
-    kprint("0x");
     char hex_numbers[16] = "0123456789ABCDEF";
 
-    char output[9];
-    output[8] = '\0';
-    int i = 7;
+    char output[11];
+    output[10] = '\0';
+    // for debugging
+    for(int i=0; i<10; i++)
+    {
+        output[i] = ' ';
+    }
+
+
+    output[0] = '0';
+    output[1] = 'x';
+
+    int i = 9;
     int res = 0;
     while (n > 0)
     {
@@ -219,6 +266,14 @@ void kprint_hex(unsigned int n)
         i--;
         n = n / 16;
     }
+
+    while(i >= 2)
+    {
+        output[i] = '0';
+        i--;
+    }
+
+
     kprint(output);
 }
 
