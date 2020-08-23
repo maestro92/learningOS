@@ -107,8 +107,8 @@ void pmmgr_set_memory_region_used(unsigned int* base, int num_bytes)
 
 void init_physical_memory_manager()
 {
-   // assume we have 16 KB of ram   
-   unsigned int ram_size = 0x100000 + 0x4000;
+   // assume we have 8 MB of ram
+   unsigned int ram_size = 0x800000 + 0x1000;   
 
    // we place the bitmap at 1MB
    pmmgr_max_blocks = ram_size / 0x1000;
@@ -129,14 +129,15 @@ void init_physical_memory_manager()
 
 
 
-   // Start it at 1MB
+   // put blocks_bitmap at 1MB
    blocks_bitmap = (unsigned int*)0x100000; 
 
    // At first, we just set all the memory region to be used
    memory_set((unsigned char*)blocks_bitmap, 0xff, bitmap_byte_size);
 
 
-   // we will use 16 kb from 1MB + 4kb
+   // we will start allowing use from from 1MB + 4kb
    unsigned int* base = (unsigned int*)(0x100000 + 0x1000);
+   ram_size = 0x800000;
    pmmgr_set_memory_region_free(base, ram_size);
 }

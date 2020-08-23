@@ -248,3 +248,11 @@ when I look at the martinOS.img, which is the binary I build, i do see the char 
 
 
 but when I examine the memory in GDB, I cant get it to work. So I will just do this for now.
+
+
+
+
+
+
+
+

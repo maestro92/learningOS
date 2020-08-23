@@ -8,7 +8,7 @@ boot_sector_start:
     mov [BOOT_DRIVE], dl    ;   when we boot, BIOS stores the boot dirve in the dl register
                             ;   we want to extract that number and put it into [BOOT_DRIVE]
 
-    mov bp, 0x9000          ; set the stack safely away from us
+    mov bp, 0x90000         ; set the stack safely away from us
     mov sp, bp
 
     mov bx, MSG_REAL_MODE
@@ -37,7 +37,7 @@ load_kernel:
     call print 
 
     mov bx, KERNEL_OFFSET
-    mov dh, 15
+    mov dh, 25
     mov dl, [BOOT_DRIVE]    ;   drive number (0=A:, 1=2nd floppy, 80h=drive 0, 81h=drive 1)
     call disk_load
     

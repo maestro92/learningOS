@@ -620,6 +620,27 @@ https://en.wikipedia.org/wiki/BIOS_interrupt_call
 https://en.wikipedia.org/wiki/INT_13H
 
 
+
+
+
+
+
+There is also this link
+http://www.brokenthorn.com/Resources/OSDev5.html
+
+There is also the wikipedia page describing the Disk sector
+https://en.wikipedia.org/wiki/Disk_sector
+So each track is divided into 512 byte sectors. On floppies, there are 18 sectors per track.
+A sector is the minimum storage unit for a hard drive. 
+
+
+
+
+
+
+
+
+
 so apparenlty, if you want to read data from the disk using the BIOS itnerrupt calls, 
 you have to set a shit ton of register values. 
 Details can be seen here 
@@ -635,15 +656,6 @@ so you have to set
                 DH head number
                 DL drive number 
                 ES:BX pointer to buffer
-
-
-
-
-There is also this link
-http://www.brokenthorn.com/Resources/OSDev5.html
-
-
-
 
 
 in the tutorial, in boot_sect_main.asm, you can see that 

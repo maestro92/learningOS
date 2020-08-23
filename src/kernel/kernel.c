@@ -138,10 +138,12 @@ int kernel_main()
    asm volatile("sti");
 
    init_physical_memory_manager();
-   test_physical_memory_mgr();
+ //  test_physical_memory_mgr();
 
 
-   // init_paging();
+   init_paging();
+
+   kprint("back here2");
 
  //  test_paging();
 /*

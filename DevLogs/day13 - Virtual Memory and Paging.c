@@ -57,6 +57,15 @@ https://cirosantilli.com/x86-paging
 
 
 
+
+
+
+
+virtual memory offers memory protection.
+with virtual memory, programs dont have to worry about memory fragmentation. 
+The OS deals with it, programs address space starts at 0x0000:0000
+
+
 ##################################################################
 ################# Virtual Memory in Intel ########################
 ##################################################################
@@ -625,6 +634,7 @@ Page frame address
 
 The Translation Lookahead Buffer (TLB) is a cache for paging addresses.
 
+This is a cache stored within the processor used to improve the speed of virtual address translation.
 
 
 
@@ -710,11 +720,39 @@ so to to test paging, you can have something like this
 
 
 
-########################################################################
-############################### Malloc #################################
-########################################################################
+#####################################################################################
+############################### Higher Half Kernels #################################
+#####################################################################################
 
-So now we can malloc stuff. 
+A Higher Half Kernel is a kernel that has a virtual base address of 2GB or above. 
+
+The Windows Kernel gets mapped to either 2GB or 3GB virtual address (depending on if /3gb kernel switch is used), 
+the Linux Kernel gets mapped to 3GB virtual address. 
+
+The series uses a higher half kernel mapped to 3GB. 
+Higher half kernels must be mapped properly into the virtual address space. 
+There are several methods to achieve this, some of which is listed here.
+
+You might be interested on why we would want a higher half kernel. 
+We can very well run our kernel at some lower virtual address. 
+One reason has to do with v86 tasks. If you want to support v86 tasks, 
+v86 tasks can only run in user mode and within the real mode address limits (0xffff:0xffff), 
+or about 1MB+64k linear address. It is also typical to run user mode programs 
+in the first 2GB (or 3GB on some OSs) as software typically never has a need to access high memory locations.
+
+
+
+
+
+
+
+Identity Mapping
+Identity Mapping is nothing more then mapping a virtual address to the same physical address. 
+For example, virtual address 0x100000 is mapped to physical address 0x100000. 
+Yep--Thats all there is to it. The only real time this is required is when first setting up paging. 
+It helps insure the memory addresses of your current running code of where they 
+are at stays the same when paging is enabled. Not doing this will result in immediate triple fault.
+You will see an example of this in our Virtual Memory Manager initialization routine.
 
 
 
@@ -767,3 +805,103 @@ for the kernel (it is easiest if all memory above the kernel virtual address sho
 If the user mode process is larger than 3 GB, some pages will need to be swapped out by the kernel. 
 Swapping pages is not part of this book.
 
+
+
+as soon as paging is enabled, all address become virtual. To fix this, we must map the virtual addresses to the same physical 
+address so they refer to the same thing. This is identity mapping 
+
+For example, lets say we want to write to video memory or any other memory-mapped devices, the memory address
+for these are exact. So once we enabled paging, we still need to properly refer to these addresses.
+
+So the simple thing here to do is to map the first 1MB properly
+
+
+
+
+
+each table represents a full 4MB virtual address space. 
+
+
+
+
+
+https://os.phil-opp.com/advanced-paging/
+
+
+When the CPU first turns on the "paging" capability, it must be executing code from an 'identity-mapped' page, otherwise it crashes 
+
+since we are running the kernel code, that means our kernel first needs to be identity mapped 
+
+
+Besides having at least one page that is 'identity-mappedt' (for turning 'paging' on), there can be multiple other mappings
+
+when paging is off, virtual address = physical address. 
+
+The kernel sets up a small identity mapping (virtual == physical) as well as a the kernel direct mapping. 
+The identity mapping is needed for the code that turns on paging. 
+
+
+also lets say we actually want to manipulate the actual page tables 
+
+For example, lets say we have already enabled paging, then lets say a memory request from a process comes in 
+and then we need to edit the "present" or "dirty" bit in the page table. 
+
+That means we have to actually access the page table entry from that page table 
+and then change the "dirty" bit. 
+
+but in order to access that page table entry, we have to access it from its memory address.
+
+So we need to somehow know the page table addresses virtual memory 
+
+solution 1 is 
+which means we need to identity map all page tables and the page directory.
+
+
+solution 2 is that you can have some math scheme. 
+For example, any memory address - 1MB is the mapping from page table virtual memory to page table physical memory.
+
+
+In this example, we see various identity-mapped page table frames. 
+This way the physical addresses of page tables are also valid virtual addresses so that we can 
+easily access the page tables of all levels starting from the CR3 register.
+
+
+
+we also want to map kernel to 3GB virtual address. 
+
+page directory 
+
+
+                #define PAGE_DIRECTORY_INDEX(x) (((x) >> 22) & 0x3ff)
+                #define PAGE_TABLE_INDEX(x) (((x) >> 12) & 0x3ff)
+                #define PAGE_GET_PHYSICAL_ADDRESS(x) (*x & ~0xfff)
+
+
+0x3ff is 001111111111
+
+so a 32 bit address is 32 bit 
+we shift 22 bits to get the first 10, which is the first 10 bits 
+0000000000 0000000000 000000000000
+
+then & it with 001111111111, so we get the first 10 bits.
+
+
+and obviously to get the table index, we just get the middle 10 bits
+
+
+
+~ is bitwise not 
+! is logical not
+
+
+
+
+
+
+#####################################################################
+########################### triple fault ############################
+#####################################################################
+
+When a fault occurs, the CPU invokes an exception handler. If a fault occurs while trying to invoke the exception handler, 
+thats called a double fault, which the CPU tries to handle with yet another exception handler. 
+If that invocation results in a fault too, the system reboots with a triple fault.
