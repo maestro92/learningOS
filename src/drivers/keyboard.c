@@ -48,6 +48,20 @@ unsigned char keyboard_map[128] =
 
 unsigned char keyboard_map[128];
 
+//! shift, alt, and ctrl keys current state
+unsigned char _shift, _alt, _ctrl;
+
+
+enum ModfierScanCode {
+  KEY_LSHIFT            = 0x2a,
+  KEY_LCTRL             = 0x1d,
+  KEY_LALT              = 0x38,
+
+  KEY_RSHIFT            = 0x36,
+//  KEY_RCTRL             = 0x4007,
+//  KEY_RALT              = 0x4008,
+};
+
 void init_keyboard_driver()
 {
 
@@ -95,14 +109,149 @@ void init_keyboard_driver()
         0,  /* All other keys are undefined */
     };
     #endif
-
+    _shift = _alt = _ctrl = 0;
     memory_copy(keyboard_map_temp, keyboard_map, 128);
 }
+
+int is_modifier_key(unsigned char scan_code)
+{
+    return scan_code == KEY_LCTRL || 
+         scan_code == KEY_LSHIFT || 
+         scan_code == KEY_RSHIFT || 
+         scan_code == KEY_LALT;
+/*
+  return scan_code == KEY_LCTRL || 
+         scan_code == KEY_RCTRL || 
+         scan_code == KEY_LSHIFT || 
+         scan_code == KEY_RSHIFT || 
+         scan_code == KEY_LALT || 
+         scan_code == KEY_RALT;
+*/
+}
+
+
+unsigned char apply_modifier_key(unsigned ascii)
+{
+  if(_shift)
+  {
+    if('a' <= ascii && ascii <= 'z')
+    {
+      ascii -= 32;
+    }
+    
+    if('0' <= ascii && ascii <= '9')
+    {
+      switch(ascii)
+      {
+        case '0':
+          ascii = ')';
+          break;  
+        case '1':
+          ascii = '!';
+          break;  
+        case '2':
+          ascii = '@';
+          break;  
+        case '3':
+          ascii = '#';
+          break;  
+        case '4':
+          ascii = '$';
+          break;  
+        case '5':
+          ascii = '%';
+          break;  
+        case '6':
+          ascii = '^';
+          break;  
+        case '7':
+          ascii = '&';
+          break;  
+        case '8':
+          ascii = '*';
+          break;  
+        case '9':
+          ascii = '(';
+          break;                          
+      }
+    }
+  }
+
+  return ascii;
+}
+
 
 void keyboard_handler()
 {
     unsigned char scan_code = port_byte_in(0x60);
-    unsigned char ascii = keyboard_map[scan_code];
-    char str[2] = {ascii, '\0'};
-    kprint(str);
+
+ //   kprint_hex(scan_code);
+ //   kprint("\n");
+
+    // Again, we either have a make code or a breakcode
+    // test if this is a break code
+
+    static int _extended = 0;
+
+    if(scan_code == 0xE0 || scan_code == 0xE1)
+    {
+      _extended = 1;
+    }
+    else 
+    {
+      if(scan_code & 0x80)
+      {
+        scan_code -= 0x80;
+        
+        if(is_modifier_key(scan_code))
+        {
+          switch(scan_code)
+          {
+            case KEY_LCTRL:
+              _ctrl = 0;
+              break;
+
+            case KEY_LSHIFT:
+            case KEY_RSHIFT:
+              _shift = 0;
+              break;
+
+            case KEY_LALT:
+              _alt = 0;
+              break;
+          }
+        }
+      }
+      else
+      {
+        // make code
+        if(is_modifier_key(scan_code))
+        {      
+          switch(scan_code)
+          {
+            case KEY_LCTRL:
+              _ctrl = 1;
+              break;
+
+            case KEY_LSHIFT:
+            case KEY_RSHIFT:
+              _shift = 1;
+              break;
+
+            case KEY_LALT:
+              _alt = 1;
+              break;
+          }
+        }
+        else 
+        {
+          unsigned char ascii = keyboard_map[scan_code];
+          ascii = apply_modifier_key(ascii);
+          char str[2] = {ascii, '\0'};
+          kprint(str);
+        }
+      }
+
+      _extended = 0;
+    }
 }

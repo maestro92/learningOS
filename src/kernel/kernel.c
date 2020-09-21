@@ -18,6 +18,17 @@ int start()
 #include "pmmgr.c"
 #include "paging.c"
 
+
+
+
+
+
+
+
+
+
+
+
 void test_print()
 {
    clear_screen();
@@ -145,7 +156,7 @@ int kernel_main()
 
    kprint("back here2");
 
-   test_paging();
+ //  test_paging();
 /*
    for(;;) 
    {

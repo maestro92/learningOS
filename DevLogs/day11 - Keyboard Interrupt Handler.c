@@ -1,3 +1,17 @@
+Lets look at how keyboard works 
+
+
+
+Read-only memory (ROM) is a type of non-volatile memory used in computers and other electronic devices. 
+Data stored in ROM cannot be electronically modified after the manufacture of the memory device.
+
+The keyboard looks up the location within its ROM character map to see what the scan code is for thea character 
+and stores it in its iternal 16 byte memory. 
+
+
+
+
+
 Lets look at how the keyboard handler works
 so one thing we need to do is to enable external, maskable interrupts after we initalize the idt 
 which we have to use the STI instruction 
@@ -42,6 +56,11 @@ obviously in my code inb becomes port_byte_in(); and that fixed my keyboard hand
 ################################################################
 ######################### Scan Code History ####################
 ################################################################
+
+So a scan code is a data packet that represents the state of a key. If a key is pressed, released or held down,
+a scan code is sent to the computers onboard keyboard controller. 
+There are two types of scan codes: Make codes and Break codes. A Make Code is sent when a key is pressed 
+or held down while a break code is sent when a key is released. 
 
 So regarding scancodes, there are some useful links: 
 https://www.win.tue.nl/~aeb/linux/kbd/scancodes-10.html#scancodesets
@@ -100,19 +119,29 @@ http://www.quadibloc.com/comp/scan.htm
 below you can see the scan code for set 1, set 2, set 3 and USB. As you can see the the list 
 is listed in the order of set 1. 
 
-I cant the design behind set 2 and set 3 on google yet. I guess that was just how the IBM people designed it 
+I cant find the design behind set 2 and set 3 on google yet. I guess that was just how the IBM people designed it 
 
 so lets just focus on set 1. 
+as you can see, if you hit esc, it gives you a scan code of 0x1
 
-        01       ---->       Esc 
-        02       ---->       ! 1
-        03       ---->       @ 2
 
-                 ....
-                 ....
+        Esc       ---->       0x01
+        ! 1       ---->       0x02          
+        @ 2       ---->       0x03
 
-        10       ---->       Q 
-        11       ---->       W
+                  ....
+                  ....
+
+        A         ---->       0x1E 
+        S         ---->       0x1F 
+
+                  ...
+                  ...
+
+notice how for scan code one, all the scancode are consecutive, so we can do a reverse mapping,
+where we map the scancode back to the ascii code
+
+
 
 
 so conveniently we can just do a mapping table from scan code to ascii code 
@@ -253,6 +282,83 @@ but when I examine the memory in GDB, I cant get it to work. So I will just do t
 
 
 
+############################################################################
+############################# Modifier Key #################################
+############################################################################
 
+https://en.wikipedia.org/wiki/Modifier_key
+
+So there is also this thing called modifer keys, which is essentially "shift", "alt" and "ctrl".
+The wikipedia link kind of describes them pretty well. 
+
+In computing, a modifier key is a special key (or combination) on a computer keyboard that temporarily modifies the normal 
+action of another key when pressed together. By themselves, modifier keys usually do nothing; 
+that is, pressing any of the ⇧ Shift, Alt, or Ctrl keys alone does not (generally) trigger any action from the computer.
+
+
+For example, 
+For example, in most keyboard layouts the Shift key combination ⇧ Shift+A will produce a capital letter "A" instead of the default lower-case letter "a"
+A combination of Alt+F4 in Microsoft Windows will close the active window;
+
+
+
+so buttons that has 2 byte scancode such as 
+R CTRL E0, 1D    or 
+R ALT E0, 38    
+
+what happens is that the keyboard_handler gets called twice 
+
+
+for example, lets say R CTRL
+
+        void keyboard_handler()
+        {
+          unsigned char scan_code = port_byte_in(0x60);
+
+          ... first time is E0 ... 
+        }
+
+
+called a 2nd time
+
+        void keyboard_handler()
+        {
+          unsigned char scan_code = port_byte_in(0x60);
+
+          ... first time is 1D ... 
+        }
+
+E0 refers to extension
+
+so what you can do kind of depends on what you want to do 
+for example, left ctrl and right ctrl, the difference is that left ctrl is (1D) and (E0, 1D);
+
+
+        void keyboard_handler()
+        {
+          unsigned char scan_code = port_byte_in(0x60);
+
+          ... first time is E0 ... 
+
+          if(scan_code == E0)
+          {
+            extended = true;
+          }
+          else 
+          {
+
+
+            if(extended == true && scan_code == 1D)
+            {
+              // then we have Right Control, and do whatever you want 
+            }
+            else if(extended == false && scan_code == 1D)
+            {
+              // then we have left control, and do whatever you want 
+            } 
+
+
+          }
+        }
 
 
